@@ -5,6 +5,7 @@ files = glob.glob('gff_files/*.gff')
 final_cols = ['filename', 'seqname', 'source', 'feature', 'start',
 	      'end', 'score', 'strand', 'frame', 'attribute'] 
 dataframes = []
+
 for f in files: 	
 	# open files
 	with open(f) as g: 
@@ -35,12 +36,11 @@ for f in files:
 	# append dataframes to list
 	df = df[final_cols]
 	dataframes.append(df)	
-
 # concat everything in the list
-df = pd.concat(dataframes).reset_index(drop=True)
+end_df = pd.concat(dataframes).reset_index(drop=True)
 
 # remove blank lines between each concat
-df = df.dropna()
+end_df = end_df.dropna()
 
 def sub_col(x, str_to_find, sep):
     if str_to_find in x:
@@ -72,26 +72,32 @@ def split_filename(x, col_name):
         return name_list[6]
 
 # insert attribute columns
-df.insert(loc=0, column='locus_tag', value=df['attribute'].apply(sub_col, str_to_find='locus_tag=', sep=';'))
-df.insert(loc=0, column='ID', value=df['attribute'].apply(sub_col, str_to_find='ID=', sep=';'))
-df.insert(loc=0, column='inference', value=df['attribute'].apply(sub_col, str_to_find='inference=', sep=';'))
-df.insert(loc=0, column='product', value=df['attribute'].apply(sub_col, str_to_find='product=', sep=';'))
-df.insert(loc=0, column='eC_number', value=df['attribute'].apply(sub_col, str_to_find='eC_number=', sep=';'))
-df.insert(loc=0, column='name', value=df['attribute'].apply(sub_col, str_to_find='Name=', sep=';'))
-df.insert(loc=0, column='db_xref', value=df['attribute'].apply(sub_col, str_to_find='db_xref=', sep=';'))
-df.insert(loc=0, column='gene', value=df['attribute'].apply(sub_col, str_to_find='gene=', sep=';'))
+end_df.insert(loc=0, column='locus_tag', value=end_df['attribute'].apply(sub_col, str_to_find='locus_tag=', sep=';'))
+end_df.insert(loc=0, column='ID', value=end_df['attribute'].apply(sub_col, str_to_find='ID=', sep=';'))
+end_df.insert(loc=0, column='inference', value=end_df['attribute'].apply(sub_col, str_to_find='inference=', sep=';'))
+end_df.insert(loc=0, column='product', value=end_df['attribute'].apply(sub_col, str_to_find='product=', sep=';'))
+end_df.insert(loc=0, column='eC_number', value=end_df['attribute'].apply(sub_col, str_to_find='eC_number=', sep=';'))
+end_df.insert(loc=0, column='name', value=end_df['attribute'].apply(sub_col, str_to_find='Name=', sep=';'))
+end_df.insert(loc=0, column='db_xref', value=end_df['attribute'].apply(sub_col, str_to_find='db_xref=', sep=';'))
+end_df.insert(loc=0, column='gene', value=end_df['attribute'].apply(sub_col, str_to_find='gene=', sep=';'))
 
 # insert filename columns
-df.insert(loc=0, column='mouse_name', value=df['filename'].apply(split_filename, col_name='mouse_name'))
-df.insert(loc=0, column='time_point', value=df['filename'].apply(split_filename, col_name='time_point'))
-df.insert(loc=0, column='isolate_number', value=df['filename'].apply(split_filename, col_name='isolate_number'))
-df.insert(loc=0, column='strain_type', value=df['filename'].apply(split_filename, col_name='strain_type'))
-df.insert(loc=0, column='bacteria', value=df['filename'].apply(split_filename, col_name='bacteria'))
-df.insert(loc=0, column='sequencing_lane', value=df['filename'].apply(split_filename, col_name='sequencing_lane'))
-df.insert(loc=0, column='sample_name', value=df['filename'].apply(split_filename, col_name='sample_name'))
+end_df.insert(loc=0, column='mouse_name', value=end_df['filename'].apply(split_filename, col_name='mouse_name'))
+end_df.insert(loc=0, column='time_point', value=end_df['filename'].apply(split_filename, col_name='time_point'))
+end_df.insert(loc=0, column='isolate_number', value=end_df['filename'].apply(split_filename, col_name='isolate_number'))
+end_df.insert(loc=0, column='strain_type', value=end_df['filename'].apply(split_filename, col_name='strain_type'))
+end_df.insert(loc=0, column='bacteria', value=end_df['filename'].apply(split_filename, col_name='bacteria'))
+end_df.insert(loc=0, column='sequencing_lane', value=end_df['filename'].apply(split_filename, col_name='sequencing_lane'))
+end_df.insert(loc=0, column='sample_name', value=end_df['filename'].apply(split_filename, col_name='sample_name'))
 
 # filter to only CDS & remove hypothetical proteins
-cds = df.loc[(df['feature']=='CDS') & (df['product']!='hypothetical protein')]
+cds = end_df.loc[(end_df['feature']=='CDS') & (end_df['product']!='hypothetical protein')]
+
+# get gene annotations 
+gene_subset = cds.loc[cds['gene'].isin(cds['gene'].dropna().unique())]
+cds_subset = cds.loc[cds['product'].str.contains('GN%3D')]
+cds_subset['gene'] = cds_subset['product'].apply(sub_col, str_to_find='GN%3D', sep=' ')
+annotated_genes = pd.concat([gene_subset, cds_subset])
 
 # save df
-cds.to_csv('cds_intermediate.csv')
+annotated_genes.to_csv('annotated_genes.csv')

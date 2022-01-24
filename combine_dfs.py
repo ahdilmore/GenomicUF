@@ -72,23 +72,22 @@ def split_filename(x, col_name):
         return name_list[6]
 
 # insert attribute columns
-end_df.insert(loc=0, column='locus_tag', value=end_df['attribute'].apply(sub_col, str_to_find='locus_tag=', sep=';'))
-end_df.insert(loc=0, column='ID', value=end_df['attribute'].apply(sub_col, str_to_find='ID=', sep=';'))
-end_df.insert(loc=0, column='inference', value=end_df['attribute'].apply(sub_col, str_to_find='inference=', sep=';'))
-end_df.insert(loc=0, column='product', value=end_df['attribute'].apply(sub_col, str_to_find='product=', sep=';'))
-end_df.insert(loc=0, column='eC_number', value=end_df['attribute'].apply(sub_col, str_to_find='eC_number=', sep=';'))
-end_df.insert(loc=0, column='name', value=end_df['attribute'].apply(sub_col, str_to_find='Name=', sep=';'))
-end_df.insert(loc=0, column='db_xref', value=end_df['attribute'].apply(sub_col, str_to_find='db_xref=', sep=';'))
-end_df.insert(loc=0, column='gene', value=end_df['attribute'].apply(sub_col, str_to_find='gene=', sep=';'))
-
+attribute_cols = ['locus_tag', 'ID', 'inference', 'product',
+		  'eC_number', 'name', 'db_xref', 'gene']
+for col_name in attribute_cols:
+	sub = col_name + '=' 
+	end_df.insert(loc=0, column=col_name,
+		      values=end_df['attribute'].apply(sub_col,
+						       str_to_find=sub,
+						       sep=';')) 
 # insert filename columns
-end_df.insert(loc=0, column='mouse_name', value=end_df['filename'].apply(split_filename, col_name='mouse_name'))
-end_df.insert(loc=0, column='time_point', value=end_df['filename'].apply(split_filename, col_name='time_point'))
-end_df.insert(loc=0, column='isolate_number', value=end_df['filename'].apply(split_filename, col_name='isolate_number'))
-end_df.insert(loc=0, column='strain_type', value=end_df['filename'].apply(split_filename, col_name='strain_type'))
-end_df.insert(loc=0, column='bacteria', value=end_df['filename'].apply(split_filename, col_name='bacteria'))
-end_df.insert(loc=0, column='sequencing_lane', value=end_df['filename'].apply(split_filename, col_name='sequencing_lane'))
-end_df.insert(loc=0, column='sample_name', value=end_df['filename'].apply(split_filename, col_name='sample_name'))
+filename_cols = ['mouse_name', 'time_point', 'isolate_number',
+		 'strain_type', 'bacteria', 'sequencing_lane',
+		 'sample_name']
+for colname in filename_cols:
+	end_df.insert(loc=0, column=colname,
+		      value=end_df['filename'].apply(split_filename,
+						     col_name=colname))
 
 # filter to only CDS & remove hypothetical proteins
 cds = end_df.loc[(end_df['feature']=='CDS') & (end_df['product']!='hypothetical protein')]

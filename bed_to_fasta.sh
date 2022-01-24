@@ -15,5 +15,6 @@ do
 		echo $file
 		bedtools getfasta -fo $output_path$name$end_fa -fi $fasta_file -bed $file
 	done
+	# merge all files for each gene to end .fa 
+	cat $output_path*.fa > $gene$end_fa
 done
-

@@ -15,6 +15,6 @@ Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/
   * Slice dataframe by gene of interest
   * Extract individual genes from genome fasta files; concat those from every genome file into one fasta file 
   * Align genomic sequences using [HMMER3](http://hmmer.org/)
-* Construct per-gene phylogenetic trees with [MAFFT fasttree] (https://docs.qiime2.org/2021.11/plugins/available/phylogeny/align-to-tree-mafft-fasttree/?highlight=mafft%20fast%20tree)  
+* Construct per-gene phylogenetic trees with [MAFFT fasttree](https://docs.qiime2.org/2021.11/plugins/available/phylogeny/align-to-tree-mafft-fasttree/?highlight=mafft%20fast%20tree)  
 * Calculate Meta UniFrac [code](https://github.com/biocore/unifrac/blob/077fca46bd)
   * Hypothetically, there will be some numerical optimization built in to handle the large number of combinations of genes 

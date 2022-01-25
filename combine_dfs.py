@@ -1,4 +1,10 @@
-import pandas as pd 
+#PBS -l nodes=1:ppn=4
+#PBS -q highmem
+#PBS -l pmem=32gb
+#PBS -l walltime=1:00:00
+
+import pandas as pd
+import numpy as np 
 import glob 
 
 files = glob.glob('gff_files/*.gff')
@@ -28,7 +34,8 @@ for f in files:
 	df = pd.DataFrame(columns = ['seqname', 'source', 'feature',
 				     'start', 'end', 'score', 
                                      'strand', 'frame', 'attribute'], 
-			  data = array)  
+		          data = array)
+	df = df.dropna()
 	start_index = f.index('/') + 1
 	end_index = f.index('.')
 	df['filename'] = f[start_index:end_index]
@@ -36,11 +43,12 @@ for f in files:
 	# append dataframes to list
 	df = df[final_cols]
 	dataframes.append(df)	
+
 # concat everything in the list
 end_df = pd.concat(dataframes).reset_index(drop=True)
 
-# remove blank lines between each concat
-end_df = end_df.dropna()
+# filter to only CDS
+cds = end_df.loc[end_df['feature']=='CDS']
 
 def sub_col(x, str_to_find, sep):
     if str_to_find in x:
@@ -76,23 +84,21 @@ attribute_cols = ['locus_tag', 'ID', 'inference', 'product',
 		  'eC_number', 'name', 'db_xref', 'gene']
 for col_name in attribute_cols:
 	sub = col_name + '=' 
-	end_df.insert(loc=0, column=col_name,
-		      values=end_df['attribute'].apply(sub_col,
-						       str_to_find=sub,
-						       sep=';')) 
+	cds.insert(loc=0, column=col_name,
+		   value=end_df['attribute'].apply(sub_col,
+						    str_to_find=sub,
+						    sep=';')) 
 # insert filename columns
 filename_cols = ['mouse_name', 'time_point', 'isolate_number',
 		 'strain_type', 'bacteria', 'sequencing_lane',
 		 'sample_name']
 for colname in filename_cols:
-	end_df.insert(loc=0, column=colname,
-		      value=end_df['filename'].apply(split_filename,
-						     col_name=colname))
+	cds.insert(loc=0, column=colname,
+		   value=cds['filename'].apply(split_filename,
+					       col_name=colname))
 
-# filter to only CDS & remove hypothetical proteins
-cds = end_df.loc[(end_df['feature']=='CDS') & (end_df['product']!='hypothetical protein')]
-
-# get gene annotations 
+# get gene annotations
+cds = cds.loc[cds['product']!='hypothetical protein'] 
 gene_subset = cds.loc[cds['gene'].isin(cds['gene'].dropna().unique())]
 cds_subset = cds.loc[cds['product'].str.contains('GN%3D')]
 cds_subset['gene'] = cds_subset['product'].apply(sub_col, str_to_find='GN%3D', sep=' ')

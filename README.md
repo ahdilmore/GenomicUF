@@ -18,3 +18,8 @@ Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/
 * Construct per-gene phylogenetic trees with [MAFFT fasttree](https://docs.qiime2.org/2021.11/plugins/available/phylogeny/align-to-tree-mafft-fasttree/?highlight=mafft%20fast%20tree)  
 * Calculate Meta UniFrac [code](https://github.com/biocore/unifrac/blob/077fca46bd)
   * Hypothetically, there will be some numerical optimization built in to handle the large number of combinations of genes 
+
+## Current required steps
+1) Run combine_dfs.py to generate general dataframe for searching genes 
+2) Run csv_to_bed.py to generate bed files for particular genes of interest 
+3) Run bed_to_fasta.sh to slice sequencing files for input to HMMER alignment 

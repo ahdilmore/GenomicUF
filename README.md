@@ -23,3 +23,8 @@ Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/
 1) Run combine_dfs.py to generate general dataframe for searching genes 
 2) Run csv_to_bed.py to generate bed files for particular genes of interest 
 3) Run bed_to_fasta.sh to slice sequencing files for input to HMMER alignment 
+
+## HAZEL TODO
+1) Troubleshoot the bed files that do not have valid .fna file associated 
+2) Try HMMER alignment with one gene of interest 
+3) Build gene tree for one gene of interest

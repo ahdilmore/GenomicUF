@@ -27,5 +27,6 @@ Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/
 ## HAZEL TODO
 1) Troubleshoot the bed files that do not have valid .fna file associated 
  * I think this is mostly solved - will probably have to play around with the order of the columns, but besides that I think everything else should work
+ * Also am going to have to watch out for some errors related to repeated sample names (I had talked to Celeste about this; likely is an issue)
 2) Try HMMER alignment with one gene of interest 
 3) Build gene tree for one gene of interest

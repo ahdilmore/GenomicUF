@@ -25,6 +25,9 @@ Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/
 3) Run bed_to_fasta.sh to slice sequencing files for input to HMMER alignment 
 
 ## HAZEL TODO
-1) Troubleshoot the bed files that do not have valid .fna file associated 
-2) Try HMMER alignment with one gene of interest 
-3) Build gene tree for one gene of interest
+1) Troubleshoot the bed files that do not have valid .fna file associated
+ * This issue is arising because of how I handled Celeste's files that had values in a certain position
+ * I can fix it by altering combine_dfs.py to handle the filenames differently 
+ * Also want to be working on the .gff files that are directly in Celeste's directory, rather than those in my .gff directory 
+3) Try HMMER alignment with one gene of interest 
+4) Build gene tree for one gene of interest

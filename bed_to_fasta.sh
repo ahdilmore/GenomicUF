@@ -11,7 +11,7 @@ do
 	do
 		name="`awk -F'_files/|_Nissle' '{print $2}' <<< "$file"`"
 		fasta_file=$fasta_dir$name/*.fna
-		bedtools getfasta -fo $output_path$name$end_fa -fi $fasta_file -bed $file
+		bedtools getfasta -fo $output_path$name$end_fa -fi $fasta_file -bed $file -name
 	done
 	# merge all files for each gene to end .fa 
 	cat $output_path*.fa > $gene$end_fa

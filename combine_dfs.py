@@ -99,6 +99,7 @@ gene_subset = cds.loc[cds['gene'].isin(cds['gene'].dropna().unique())]
 cds_subset = cds.loc[cds['product'].str.contains('GN%3D')]
 cds_subset['gene'] = cds_subset['product'].apply(sub_col, str_to_find='GN%3D', sep=' ')
 annotated_genes = pd.concat([gene_subset, cds_subset])
+annotated_genes['name'] = annotated_genes['filename'] + ' ' + annotated_genes['gene']
 
 # save df
 annotated_genes.to_csv('annotated_genes.csv', index=False)

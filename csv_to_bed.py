@@ -5,7 +5,7 @@ annotated_genes = pd.read_csv('annotated_genes.csv',
 				     'end':int, 'db_xref':str,
 				     'eC_number':str})
 genes_of_interest = ['garD']
-final_cols = ['seqname', 'source', 'feature', 'start', 'end',
+final_cols = ['seqname', 'source', 'name', 'start', 'end',
 	      'score', 'strand', 'frame', 'attribute']
 
 for gene in genes_of_interest:

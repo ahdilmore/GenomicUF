@@ -101,4 +101,4 @@ cds_subset['gene'] = cds_subset['product'].apply(sub_col, str_to_find='GN%3D', s
 annotated_genes = pd.concat([gene_subset, cds_subset])
 
 # save df
-annotated_genes.to_csv('annotated_genes_new.csv', index=False)
+annotated_genes.to_csv('annotated_genes.csv', index=False)

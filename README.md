@@ -25,5 +25,5 @@ Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/
 3) Run bed_to_fasta.sh to slice sequencing files for input to HMMER alignment 
 
 ## HAZEL TODO
-1) Figure out how to build per-gene tree for gene of interest
-2) Solve issue with prokka annotations (contact people who could help with this)
+1) Obtain permissions in barnacle2 to write to Celeste's directories
+2) Write scripts to build per gene trees

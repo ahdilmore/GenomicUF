@@ -121,7 +121,7 @@ def get_id(x, str_to_find):
 	return x
 
 def make_fasta_name(x):
-	return x['pfam_id'] + '_' + x['filename'] + '_' + str(x['rank'])
+	return x['Pfam'] + '_' + x['filename'] + '_' + str(x['rank'])
 
 def make_bed_files(pfam, final_cols, out_path):
 	"""Function to output bed files of all pfam annotated-genes"""

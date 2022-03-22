@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import glob
+import os
 
 # SET PARAMS: 
 files_dir = '../../../panfs/callaban/prokka_AZ51/'
@@ -10,8 +11,7 @@ files_cols = ['filename', 'seqname', 'source', 'feature', 'start',
 attribute_cols = ['ID', 'Parent', 'eC_number', 'Name',
                   'dbxref', 'gene', 'inference', 'locus_tag',
                   'product', 'protein_id']
-final_cols = ['seqname', 'start', 'end', 'Pfam', 
-              'score', 'strand', 'frame']
+final_cols = ['seqname', 'start', 'end', 'name']
 to_remove = ['../../../panfs/callaban/prokka_AZ51/46R_Month1_13_S1816/46R_Month1_13_S1816_AZ51_mut.gff']
 out_path = 'out_AZ51/'
 
@@ -53,7 +53,8 @@ def concat_annotations(files_dir, files_pattern, files_cols, to_remove):
 		name = f[len(files_dir):]
 		start_index = name.index('/') + 1
 		end_index = name.index('.')
-		df['filename'] = name[start_index:end_index]
+		df.insert(loc=0, column='filename',
+			  value=name[start_index:end_index])
         
         	# append dataframes to list
 		df = df[files_cols]
@@ -113,29 +114,35 @@ def extract_pfam(files_dir, files_pattern, files_cols, to_remove,
 						  sep=':'))
 	return pfam
 
-pfam = extract_pfam(files_dir, files_pattern, files_cols, to_remove, attribute_cols)
-pfam.to_csv('pfam_annots_AZ51.csv')
+def get_id(x, str_to_find):
+	if str_to_find in x:
+		end_index = x.index(str_to_find)
+		return x[:end_index]
+	return x
 
-def make_bed_files(files_dir, files_pattern, files_cols, to_remove,
-		   attribute_cols, pfams_of_interest, final_cols, out_path):
+def make_fasta_name(x):
+	return x['pfam_id'] + '_' + x['filename'] + '_' + str(x['rank'])
+
+def make_bed_files(pfam, final_cols, out_path):
 	"""Function to output bed files of all pfam annotated-genes"""
-	pfam = extract_pfam(files_dir, files_pattern, files_cols, to_remove,
-			    attribute_cols)
+	pfam.insert(loc=0, column='rank', value=pfam.groupby(['Pfam', 'filename'])['start'].rank().astype('int'))
+	pfam.insert(loc=0, column='name', value=pfam.apply(make_fasta_name, axis=1))
 
-	for pfam_id in pfams_of_interest: 
+	for pfam_id in pfam['Pfam'].unique():
 		df = pfam.loc[pfam['Pfam']==pfam_id]
 		unique_files = df['filename'].unique()
-		print(pfam_id)
-		for file in unique_files: 
-			bed_name = out_path + pfam_id + '/' + file + '.bed'
-			print(bed_name)
-			sub_df = df.loc[df['filename']==file]
+		if not os.path.exists(out_path + pfam_id):
+			os.mkdir(out_path + pfam_id + '/')
+		for f in unique_files:
+			bed_name = out_path + pfam_id + '/' + f + '.bed'
+			sub_df = df.loc[df['filename']==f]
 			sub_df[final_cols].to_csv(bed_name, index=False, header=False, sep='\t')
-	print('done!') 
 
-pfams_of_interest = ['PF02627.23', 'PF03502.16', 'PF04328.16', 'PF05943.15',
-                     'PF06545.14', 'PF07963.15', 'PF10685.12', 'PF11072.11',
-                     'PF11392.11', 'PF13708.9']
 
-make_bed_files(files_dir, files_pattern, files_cols, to_remove, attribute_cols,
-	       pfams_of_interest, final_cols, out_path) 
+# combine dfs
+pfam = extract_pfam(files_dir, files_pattern, files_cols, to_remove, attribute_cols)
+pfam.to_csv('pfam_annots_AZ51.csv', index=False)
+
+# make the bed files
+pfam = pd.read_csv('pfam_annots_AZ51.csv')
+make_bed_files(pfam, final_cols, out_path) 

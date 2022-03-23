@@ -9,13 +9,12 @@ do
 	file_array=($gene/*.bed)
 	for file in "${file_array[@]}"
 	do
-		end=${file##*$gene/}
-		name=${end%%_AZ51*}
-		fasta_file=$fasta_dir$name*.fna
-		bedtools getfasta -fo $output_path$name$end_fa -fi $fasta_file -bed $file -name
+		x=$(basename $file _AZ51_mut.bed)
+		fasta_file=$fasta_dir$x*.fna
+		bedtools getfasta -fo $output_path$x$end_fa -fi $fasta_file -bed $file -name
 	done
 	# merge all files for each gene to end .fa 
-	echo $gene$end_fa
+	echo $gene
 	cat $output_path*.fa > $gene$end_fa
 done
 echo 'done!'

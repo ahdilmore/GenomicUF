@@ -146,4 +146,6 @@ pfam.to_csv('pfam_annots_AZ20.csv', index=False)
 
 # make the bed files
 pfam = pd.read_csv('pfam_annots_AZ20.csv')
+pfam_over_5 = pfam["Pfam"].value_counts()[pfam["Pfam"].value_counts() > 5].index
+pfam = pfam.loc[pfam["Pfam"].isin(pfam_over_5)]
 make_bed_files(pfam, final_cols, out_path) 

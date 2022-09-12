@@ -120,17 +120,18 @@ def get_id(x, str_to_find):
 		return x[:end_index]
 	return x
 
-def make_fasta_name(x):
-	return x['Pfam'] + '_' + x['filename'] + '_' + str(x['rank'])
+def make_fasta_name(x, col_to_sort):
+	return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
 
-def make_bed_files(pfam, final_cols, out_path):
+def make_bed_files(pfam, final_cols, out_path, col_to_sort):
 	"""Function to output bed files of all pfam annotated-genes"""
-	pfam.insert(loc=0, column='rank', value=pfam.groupby(['Pfam', 'filename'])['start'].rank().astype('int'))
-	pfam.insert(loc=0, column='name', value=pfam.apply(make_fasta_name, axis=1))
+	pfam.insert(loc=0, column='rank', value=pfam.groupby([col_to_sort, 'filename'])['start'].rank().astype('int'))
+	pfam.insert(loc=0, column='name', value=pfam.apply(make_fasta_name, args=(col_to_sort,), axis=1))
 
-	for pfam_id in pfam['Pfam'].unique():
-		df = pfam.loc[pfam['Pfam']==pfam_id]
+	for pfam_id in pfam[col_to_sort].unique():
+		df = pfam.loc[pfam[col_to_sort]==pfam_id]
 		unique_files = df['filename'].unique()
+		print(pfam_id)
 		if not os.path.exists(out_path + pfam_id):
 			os.mkdir(out_path + pfam_id + '/')
 		for f in unique_files:
@@ -140,9 +141,25 @@ def make_bed_files(pfam, final_cols, out_path):
 
 
 # combine dfs
-pfam = extract_pfam(files_dir, files_pattern, files_cols, to_remove, attribute_cols)
-pfam.to_csv('pfam_annots_AZ51.csv', index=False)
+#pfam = extract_pfam(files_dir, files_pattern, files_cols, to_remove, attribute_cols)
+#pfam.to_csv('pfam_annots_AZ51.csv', index=False)
 
 # make the bed files
-pfam = pd.read_csv('pfam_annots_AZ51.csv')
-make_bed_files(pfam, final_cols, out_path) 
+#pfam = pd.read_csv('pfam_annots_AZ51.csv')
+#pfam_over_5 = pfam["Pfam"].value_counts()[pfam["Pfam"].value_counts() > 5].index
+#pfam = pfam.loc[pfam["Pfam"].isin(pfam_over_5)]
+#make_bed_files(pfam, final_cols, out_path)
+
+# FOR GENE COMPARISON: 
+#full_df = concat_annotations(files_dir, files_pattern, files_cols, to_remove)
+#genes_df = full_df.loc[full_df["feature"] == "CDS"]
+#genes_df = split_attribute(genes_df, attribute_cols)
+#genes_df = genes_df.loc[genes_df["gene"].notna()]
+#genes_df.to_csv('AZ51_full_df.csv', index=False)
+
+genes_df = pd.read_csv("AZ51_full_df.csv")
+# genes present must be present in over 100 isolates (~10%)
+genes_over_100 = genes_df["gene"].value_counts()[genes_df["gene"].value_counts() > 100].index
+genes_df = genes_df.loc[genes_df["gene"].isin(genes_over_100)]
+out_path_new = 'genes_out_AZ51_filt/'
+make_bed_files(genes_df, final_cols, out_path_new, "gene") 

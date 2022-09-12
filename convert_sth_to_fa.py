@@ -2,7 +2,7 @@ import glob
 import os
 from Bio import AlignIO 
 
-sth_dir='out_AZ20/msa_files/'
+sth_dir='out_AZ51/msa_files/'
 str_files=glob.glob(sth_dir + '*.sth')
 
 for f in str_files:

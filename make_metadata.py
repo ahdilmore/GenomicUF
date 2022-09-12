@@ -32,6 +32,6 @@ def make_dataframe(sample_names, end_cols):
 filename_cols = ['mouse_name', 'time_point', 'isolate_number',
                  'strain_type', 'bacteria', 'sequencing_lane',
                  'additional_name']
-start_df = pd.read_csv('pfam_annots_AZ51.csv')
+start_df = pd.read_csv('AZ51_full_df.csv')
 end_df = make_dataframe(start_df['filename'].unique(), filename_cols)
-end_df.to_csv('AZ51_metadata.csv')
+end_df.to_csv('AZ51_full_metadata.csv')

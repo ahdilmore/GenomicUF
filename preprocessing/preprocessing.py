@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import glob
 import os
+import warnings
 
 GFF_COLUMNS = ['filename', 'seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
@@ -11,7 +12,7 @@ BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 
 # preprocessing combines multiple steps from previous pipelines 
 # step 1: concatenate annotations together 
-def concat_annotations(files_dir, files_pattern, to_remove): 
+def concat_annotations(files_dir, files_pattern): 
     """This function takes directory containing several 
     .gff/.csv files and concatenates them into a pd.DataFrame
     to make parsing easier for downstream steps.
@@ -45,20 +46,17 @@ def concat_annotations(files_dir, files_pattern, to_remove):
             if line.startswith('#') == False:
                 array.append(line.split('\t'))
 
-        # put into dataframe
-        df = pd.DataFrame(columns=GFF_COLUMNS, data=array).dropna()
-        # extract filename and add it to the dataframe
-        name = f[len(files_dir):]
-        start_index = name.index('/') + 1
-        end_index = name.index('.')
-        df.insert(loc=0, column='filename', 
-                  value=name[start_index:end_index])
-        
-        # ensure columns are in correct order
-        # I think this step might not be necessary
-        df = df[['filename'] + GFF_COLUMNS]
-        dataframes.append(df)
-    
+        # if array is empty, put out a warning message; else put into dataframe
+        if ((array == [[]]) | (array == [['']])): 
+            warnings.warn(f + 'does not contain genomic annotation information')
+        else: 
+            df = pd.DataFrame(columns=GFF_COLUMNS, data=array).dropna()
+            # extract filename and add it to the dataframe
+            name = f[len(files_dir):]
+            start_index = name.index('/') + 1
+            end_index = name.index('.')
+            df.insert(loc=0, column='filename', value=name[start_index:end_index])
+            dataframes.append(df)
     # concat everything in the list
     return pd.concat(dataframes).reset_index(drop=True)
 

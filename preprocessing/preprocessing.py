@@ -4,7 +4,7 @@ import glob
 import os
 import warnings
 
-GFF_COLUMNS = ['filename', 'seqname', 'source', 'feature', 'start',
+GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
 ATTRIBUTE_COLUMNS = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene', 
                      'inference', 'locus_tag', 'product', 'protein_id']
@@ -112,11 +112,11 @@ def filter_features(features_df, feature_col, value):
     return features_df.loc[features_df[feature_col].isin(filt)]
 
 # step 5: wrap to make a list of total features 
-def wrapper_func(files_dir, files_pattern, to_remove=None, pfam=True,
+def wrapper_func(files_dir, files_pattern, pfam=True,
                  feature_value='CDS', filter_value=5):
     
     # get all annotations 
-    annots = concat_annotations(files_dir, files_pattern, to_remove)
+    annots = concat_annotations(files_dir, files_pattern)
 
     # filter annots to feature of interest
     feats = filter_annotations(annots, feature_value)

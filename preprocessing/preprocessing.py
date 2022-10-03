@@ -22,9 +22,6 @@ def concat_annotations(files_dir, files_pattern):
     to_remove: names of problematic files 
     """
     files = glob.glob(files_dir + files_pattern)
-
-    for i in to_remove: 
-        files.remove(i)
         
     dataframes = []
     for f in files:

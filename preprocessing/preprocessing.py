@@ -13,15 +13,11 @@ BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 # preprocessing combines multiple steps from previous pipelines 
 # optional step 1: read the gff file 
 def _read_annotation(path_to_annot):
-    # check that the file path is valid
-    if not os.path.exists(path_to_annot):
-        raise FileNotFoundError(path_to_annot + 'does not exist.')
-    
     with open(path_to_annot) as f:
             lines = f.readlines()
     
     # check if FASTA sequence present; if so, get rid of it
-    if lines.contains('##FASTA'):
+    if '##FASTA' in lines:
         lines = lines[:lines.index('##FASTA')]
     
     # join the lines together into a string
@@ -68,9 +64,14 @@ def concat_annotations(file_dict = None, glob_pattern=None):
             df.insert(loc=0, column='filename', value=key)
             dataframes.append(df)
 
-    if glob_pattern is not None: 
+    if glob_pattern is not None:
         files = glob.glob(glob_pattern)
+        if files == []:
+            raise ValueError('Path contains no files')
         for f in files:
+            if ('.gff' not in f) & ('.txt' not in f) & ('.tsv' not in f):
+                raise ValueError('Path contains unexpected filetype')
+
             gff_read = _read_annotation(f)
             # extract filename and add it to the dataframe
             name = os.path.basename(f)

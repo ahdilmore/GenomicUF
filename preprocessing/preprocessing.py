@@ -11,8 +11,41 @@ ATTRIBUTE_COLUMNS = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene',
 BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 
 # preprocessing combines multiple steps from previous pipelines 
+# optional step 1: read the gff file 
+def _read_annotation(path_to_annot):
+    # check that the file path is valid
+    if not os.path.exists(path_to_annot):
+        raise FileNotFoundError(path_to_annot + 'does not exist.')
+    
+    with open(path_to_annot) as f:
+            lines = f.readlines()
+    
+    # check if FASTA sequence present; if so, get rid of it
+    if lines.contains('##FASTA'):
+        lines = lines[:lines.index('##FASTA')]
+    
+    # join the lines together into a string
+    text_str = ''.join(lines)
+
+    # turn each individual line into an element in a list 
+    list_of_lines = text_str.split('\n')
+    
+    # remove comment lines; make tab-separated elements into new array
+    array = []
+    for line in list_of_lines:
+        if (not line.startswith('#')) & (line != '') :
+            array.append(line.split('\t'))
+
+    # check that array has the correct number of columns 
+    if array == [[]]: 
+        warnings.warn(path_to_annot + 'does not contain genomic annotation information')
+    elif np.array(array).shape[1] != 9: 
+        raise ValueError(path_to_annot + 'does not have correct GFF dimensions')
+
+    return pd.DataFrame(columns=GFF_COLUMNS, data=array)
+
 # step 1: concatenate annotations together 
-def concat_annotations(files_dir, files_pattern): 
+def concat_annotations(file_dict = None, glob_pattern=None): 
     """This function takes directory containing several 
     .gff/.csv files and concatenates them into a pd.DataFrame
     to make parsing easier for downstream steps.
@@ -21,38 +54,28 @@ def concat_annotations(files_dir, files_pattern):
     files_cols: ending column names desired
     to_remove: names of problematic files 
     """
-    files = glob.glob(files_dir + files_pattern)
-        
+    if (file_dict is None) & (glob_pattern is None):
+        raise ValueError('One of file dictionary or path to files is required.')
+    elif (file_dict is not None) & (glob_pattern is not None): 
+        raise ValueError('Only one of file dictionary or path to files can be supplied.')
+    
     dataframes = []
-    for f in files:
-        # open files
-        with open(f) as g: lines = g.readlines()
 
-        # find the index where sequence starts; cut off reading there
-        lines = lines[:lines.index('##FASTA\n')]
+    if file_dict is not None:
+        for key in file_dict.keys(): 
+        # add the key to each dataframe as the filename column
+            df = file_dict[key]
+            df.insert(loc=0, column='filename', value=key)
+            dataframes.append(df)
 
-        # join the lines together into a string
-        big_str = ''.join(lines)
-
-        # turn each individual line into an element in a list 
-        list_of_lines = big_str.split('\n')
-
-        # remove comment lines; make tab-separated elements into new array
-        array = []
-        for line in list_of_lines:
-            if line.startswith('#') == False:
-                array.append(line.split('\t'))
-
-        # if array is empty, put out a warning message; else put into dataframe
-        if ((array == [[]]) | (array == [['']])): 
-            warnings.warn(f + 'does not contain genomic annotation information')
-        else: 
-            df = pd.DataFrame(columns=GFF_COLUMNS, data=array).dropna()
+    if glob_pattern is not None: 
+        files = glob.glob(glob_pattern)
+        for f in files:
+            gff_read = _read_annotation(f)
             # extract filename and add it to the dataframe
-            name = f[len(files_dir):]
-            start_index = name.index('/') + 1
-            end_index = name.index('.')
-            df.insert(loc=0, column='filename', value=name[start_index:end_index])
+            name = os.path.basename(f)
+            end_index = name.index('.') # get rid of .gff 
+            gff_read.insert(loc=0, column='filename', value=name[:end_index])
             dataframes.append(df)
     # concat everything in the list
     return pd.concat(dataframes).reset_index(drop=True)

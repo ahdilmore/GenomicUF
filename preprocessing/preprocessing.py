@@ -61,6 +61,12 @@ def concat_annotations(file_dict = None, glob_pattern=None):
         for key in file_dict.keys(): 
         # add the key to each dataframe as the filename column
             df = file_dict[key]
+            # check that the dimensions are correct
+            if len(df.columns) != 9: 
+                raise ValueError(key + ' in file dictionary does not have the correct GFF dimensions')
+            # check that column names are correct 
+            elif len(set(df.columns) & set(GFF_COLUMNS)) != 9: 
+                raise ValueError(key + ' in file dictionary does not have the correct GFF columns')
             df.insert(loc=0, column='filename', value=key)
             dataframes.append(df)
 

@@ -15,13 +15,13 @@ BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 def _read_annotation(path_to_annot):
     with open(path_to_annot) as f:
             lines = f.readlines()
-    
-    # check if FASTA sequence present; if so, get rid of it
-    if '##FASTA' in lines:
-        lines = lines[:lines.index('##FASTA')]
-    
+        
     # join the lines together into a string
     text_str = ''.join(lines)
+    
+    # check if FASTA sequence present; if so, get rid of it
+    if '##FASTA' in text_str:
+        text_str = text_str[:text_str.index('##FASTA')]
 
     # turn each individual line into an element in a list 
     list_of_lines = text_str.split('\n')
@@ -33,11 +33,11 @@ def _read_annotation(path_to_annot):
             array.append(line.split('\t'))
 
     # check that array has the correct number of columns 
-    if array == [[]]: 
-        warnings.warn(path_to_annot + 'does not contain genomic annotation information')
+    if (array == [[]]) | (array==[]): 
+        warnings.warn(path_to_annot + ' does not contain genomic annotation information')
+        return pd.DataFrame([])
     elif np.array(array).shape[1] != 9: 
         raise ValueError(path_to_annot + 'does not have correct GFF dimensions')
-
     return pd.DataFrame(columns=GFF_COLUMNS, data=array)
 
 # step 1: concatenate annotations together 
@@ -77,7 +77,7 @@ def concat_annotations(file_dict = None, glob_pattern=None):
             name = os.path.basename(f)
             end_index = name.index('.') # get rid of .gff 
             gff_read.insert(loc=0, column='filename', value=name[:end_index])
-            dataframes.append(df)
+            dataframes.append(gff_read)
     # concat everything in the list
     return pd.concat(dataframes).reset_index(drop=True)
 

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+# gonna have to figure out why this is giving me an error
 from preprocessing.preprocessing import *
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
@@ -55,4 +56,14 @@ def test_gff_columns_present():
         concat_annotations(file_dict=incorrect_col_names)
     
     # check that correct_names gives no error
+    concat_correct_format = concat_annotations(file_dict=correct_names)
+    assert sum(concat_correct_format.columns == ['filename'] + GFF_COLUMNS) == 10
+    assert concat_correct_format.shape == (3, 10)
 
+# test filter_annotations 
+# make sure that the value is actually a possible value in the dataframe 
+
+# test pfam_annotations 
+# check that there actually are pfam annotations in the dataframe
+
+# think about how to change up the code / refactoring so that it's easier to read

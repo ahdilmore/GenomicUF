@@ -137,6 +137,10 @@ def extract_pfam(features_df):
 
 # step 4: filter the features to certain value counts 
 def filter_features(features_df, feature_col, value):
+    if (feature_col not in features_df.columns):
+        raise ValueError('Column not found in dataframe provided.')
+    elif (value not in features_df[feature_col].unique()):
+        raise ValueError('Value not found in column provided.')
     counts = features_df[feature_col].value_counts()
     filt = counts[counts > value].index
     return features_df.loc[features_df[feature_col].isin(filt)]

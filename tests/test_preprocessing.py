@@ -22,7 +22,7 @@ def test_invalid_paths():
 def test_valid_files():
     valid_path = 'data/adaptation_AZ20/*S*/*.gff'
     # show that no errors are raised
-    valid_out = concat_annotations(valid_path)
+    valid_out = concat_annotations(glob_pattern=valid_path)
     assert valid_out.shape == (58906, 10)
 
 def test_empty_file_warning():
@@ -63,9 +63,19 @@ def test_gff_columns_present():
     assert concat_correct_format.shape == (3, 10)
 
 # test filter_annotations 
-# make sure that the value is actually a possible value in the dataframe 
+def test_filter_annotations():
+    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
+    valid_df = concat_annotations(glob_pattern=valid_path)
+    # check that col exists in dataframe 
+    with pytest.raises(ValueError, match='Column not found'):
+        filter_features(features_df=valid_df, feature_col='feature_id', value='CDS')
+    # check that value exists in col 
+    with pytest.raises(ValueError, match='Value not found'):
+        filter_features(features_df=valid_df, feature_col='feature', value='mRNA')
+    cds_only = filter_features(features_df=valid_df, feature_col='feature', value='CDS')
+    assert cds_only.shape == (28907, 10)
 
-# test pfam_annotations 
+# test pfam_annotations
 # check that there actually are pfam annotations in the dataframe
 
 # think about how to change up the code / refactoring so that it's easier to read

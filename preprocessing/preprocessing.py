@@ -118,10 +118,9 @@ def _split_attribute(df, cols_to_insert):
     # insert columns 
     for col_name in cols_to_insert:
         sub = col_name + '='
-        df.insert(loc=0, column=col_name,
-                  value=df['attribute'].apply(_sub_col,
-                                              str_to_find=sub,
-                                              sep=';'))
+        df[col_name] = df['attribute'].apply(_sub_col,
+                                             str_to_find=sub,
+                                             sep=';')
     # remove attribute
     df.drop(columns=['attribute'], inplace=True)
     return df
@@ -133,6 +132,10 @@ def extract_pfam(features_df):
 
     # split up the attribute column to search more easily for Pfams
     full_df = _split_attribute(features_df, ATTRIBUTE_COLUMNS)
+
+    # check that there are no NaNs in inference 
+    if full_df.loc[full_df['inference'].isna()].shape[0] > 0:
+        raise ValueError('Features dataframe has not been filtered. There are entries with invalid inferences.')
     
     # find rows that have a Pfam value and insert column with their value 
     pfam = full_df.loc[full_df['inference'].str.contains('Pfam')]

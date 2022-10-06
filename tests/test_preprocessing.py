@@ -6,6 +6,8 @@ from preprocessing.preprocessing import *
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
+VALID_PATH = 'data/adaptation_AZ20/*S*/*.gff'
+VALID_DF = concat_annotations(glob_pattern=VALID_PATH)
 
 # tests for concatenating dataframes
 def test_invalid_paths(): 
@@ -20,10 +22,7 @@ def test_invalid_paths():
         concat_annotations(glob_pattern=no_gffs)
 
 def test_valid_files():
-    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
-    # show that no errors are raised
-    valid_out = concat_annotations(glob_pattern=valid_path)
-    assert valid_out.shape == (58906, 10)
+    assert VALID_DF.shape == (58906, 10)
 
 def test_empty_file_warning():
     # checks that user is warned about files without genomic information
@@ -64,39 +63,37 @@ def test_gff_columns_present():
 
 # test filter_annotations 
 def test_filter_annotations():
-    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
-    valid_df = concat_annotations(glob_pattern=valid_path)
-    invalid_df = valid_df.rename(columns={'feature': 'feature_id'})
+    invalid_df = VALID_DF.rename(columns={'feature': 'feature_id'})
     # check that feature column exists in dataframe
     with pytest.raises(ValueError, match='column is not found'):
         filter_annotations(annotation_df=invalid_df, feature_value='CDS')
     # check that value exists in col 
     with pytest.raises(ValueError, match='value provided'):
-        filter_annotations(annotation_df=valid_df, feature_value='mRNA')
-    cds_only = filter_annotations(annotation_df=valid_df, feature_value='CDS')
+        filter_annotations(annotation_df=VALID_DF, feature_value='mRNA')
+    cds_only = filter_annotations(annotation_df=VALID_DF, feature_value='CDS')
     assert cds_only.shape == (28907, 10)
 
 # test pfam filter 
 def test_pfam_filter(): 
     # check that the inference column is present in the dataframe 
-    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
-    valid_df = concat_annotations(glob_pattern=valid_path)
-    invalid_df = valid_df.drop(columns=['attribute'])
+    invalid_df = VALID_DF.drop(columns=['attribute'])
     with pytest.raises(ValueError, match='Attribute column'):
         extract_pfam(invalid_df)
-    # check that the output is as expected in valid dataframe 
-    # having some issues with this check but i'm hungry
-    pfams_valid = extract_pfam(valid_df)
-    #assert pfams_valid.shape
+    # when there are invalid inferences, value error should be raised
+    with pytest.raises(ValueError, match='invalid inferences'):
+        extract_pfam(VALID_DF)
+    valid_cds = filter_annotations(annotation_df=VALID_DF, feature_value='CDS')
+    pfam_valid = extract_pfam(valid_cds)
+    assert pfam_valid.shape == (1872, 20)
 
 def test_filter_features(): 
-    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
-    valid_df = concat_annotations(glob_pattern=valid_path)
     # check that col exists in dataframe 
     with pytest.raises(ValueError, match='Column not found'):
-        filter_features(features_df=valid_df, feature_col='feature_id', value=5)
+        filter_features(features_df=VALID_DF, feature_col='feature_id', value=5)
     # check that min value is an integer
     with pytest.raises(ValueError, match='integer'):
-        filter_features(features_df=valid_df, feature_col='feature', value='CDS')
-    feat_filt = filter_features(feature_df=valid_df, feature_col='Pfam', value=10)
-    # assert correct dims 
+        filter_features(features_df=VALID_DF, feature_col='feature', value='CDS')
+    valid_cds = filter_annotations(annotation_df=VALID_DF, feature_value='CDS')
+    pfam_valid = extract_pfam(valid_cds)
+    feat_filt = filter_features(feature_df=pfam_valid, feature_col='Pfam', value=10)
+    assert feat_filt.shape == (199, 20)

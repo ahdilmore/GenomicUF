@@ -21,7 +21,9 @@ def test_invalid_paths():
 
 def test_valid_files():
     valid_path = 'data/adaptation_AZ20/*S*/*.gff'
-    # show that no errors are raised 
+    # show that no errors are raised
+    valid_out = concat_annotations(valid_path)
+    assert valid_out.shape == (58906, 10)
 
 def test_empty_file_warning():
     # checks that user is warned about files without genomic information

@@ -91,6 +91,10 @@ def concat_annotations(file_dict = None, glob_pattern=None):
 def filter_annotations(annotation_df, feature_value):
     """Filter annotations to a specific feature type (i.e. coding
     sequence, tRNAs, etc."""
+    if 'feature' not in annotation_df.columns:
+        raise ValueError('The feature column is not found in the annotation dataframe.')
+    elif feature_value not in annotation_df['feature'].unique():
+        raise ValueError('The feature value provided is not present in the annotation dataframe.')
     return annotation_df.loc[annotation_df['feature']==feature_value]
 
 # step 3 filter to features that have a Pfam annotation
@@ -124,6 +128,8 @@ def _split_attribute(df, cols_to_insert):
 
 def extract_pfam(features_df):
     """Function extract Pfam features."""
+    if 'attribute' not in features_df.columns: 
+        raise ValueError('Attribute column not present in dataframe.')
 
     # split up the attribute column to search more easily for Pfams
     full_df = _split_attribute(features_df, ATTRIBUTE_COLUMNS)
@@ -136,13 +142,13 @@ def extract_pfam(features_df):
     return pfam
 
 # step 4: filter the features to certain value counts 
-def filter_features(features_df, feature_col, value):
+def filter_features(features_df, feature_col, min_value):
     if (feature_col not in features_df.columns):
         raise ValueError('Column not found in dataframe provided.')
-    elif (value not in features_df[feature_col].unique()):
-        raise ValueError('Value not found in column provided.')
+    elif (isinstance(min_value, int)) == False:
+        raise ValueError('min_value provided is not an integer.')
     counts = features_df[feature_col].value_counts()
-    filt = counts[counts > value].index
+    filt = counts[counts > min_value].index
     return features_df.loc[features_df[feature_col].isin(filt)]
 
 # step 5: wrap to make a list of total features 

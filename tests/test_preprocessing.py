@@ -66,16 +66,37 @@ def test_gff_columns_present():
 def test_filter_annotations():
     valid_path = 'data/adaptation_AZ20/*S*/*.gff'
     valid_df = concat_annotations(glob_pattern=valid_path)
-    # check that col exists in dataframe 
-    with pytest.raises(ValueError, match='Column not found'):
-        filter_features(features_df=valid_df, feature_col='feature_id', value='CDS')
+    invalid_df = valid_df.rename(columns={'feature': 'feature_id'})
+    # check that feature column exists in dataframe
+    with pytest.raises(ValueError, match='column is not found'):
+        filter_annotations(annotation_df=invalid_df, feature_value='CDS')
     # check that value exists in col 
-    with pytest.raises(ValueError, match='Value not found'):
-        filter_features(features_df=valid_df, feature_col='feature', value='mRNA')
-    cds_only = filter_features(features_df=valid_df, feature_col='feature', value='CDS')
+    with pytest.raises(ValueError, match='value provided'):
+        filter_annotations(annotation_df=valid_df, feature_value='mRNA')
+    cds_only = filter_annotations(annotation_df=valid_df, feature_value='CDS')
     assert cds_only.shape == (28907, 10)
 
-# test pfam_annotations
-# check that there actually are pfam annotations in the dataframe
+# test pfam filter 
+def test_pfam_filter(): 
+    # check that the inference column is present in the dataframe 
+    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
+    valid_df = concat_annotations(glob_pattern=valid_path)
+    invalid_df = valid_df.drop(columns=['attribute'])
+    with pytest.raises(ValueError, match='Attribute column'):
+        extract_pfam(invalid_df)
+    # check that the output is as expected in valid dataframe 
+    # having some issues with this check but i'm hungry
+    pfams_valid = extract_pfam(valid_df)
+    #assert pfams_valid.shape
 
-# think about how to change up the code / refactoring so that it's easier to read
+def test_filter_features(): 
+    valid_path = 'data/adaptation_AZ20/*S*/*.gff'
+    valid_df = concat_annotations(glob_pattern=valid_path)
+    # check that col exists in dataframe 
+    with pytest.raises(ValueError, match='Column not found'):
+        filter_features(features_df=valid_df, feature_col='feature_id', value=5)
+    # check that min value is an integer
+    with pytest.raises(ValueError, match='integer'):
+        filter_features(features_df=valid_df, feature_col='feature', value='CDS')
+    feat_filt = filter_features(feature_df=valid_df, feature_col='Pfam', value=10)
+    # assert correct dims 

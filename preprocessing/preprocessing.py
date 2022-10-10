@@ -3,13 +3,11 @@ import numpy as np
 import glob
 import os
 import warnings
-import pybedtools
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
 ATTRIBUTE_COLUMNS = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene', 
                      'inference', 'locus_tag', 'product', 'protein_id']
-BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 
 # preprocessing combines multiple steps from previous pipelines 
 # optional step 1: read the gff file 
@@ -41,8 +39,36 @@ def _read_annotation(path_to_annot):
         raise ValueError(path_to_annot + 'does not have correct GFF dimensions')
     return pd.DataFrame(columns=GFF_COLUMNS, data=array)
 
+def process_data_dict(glob_patterns=None, data_dict=None):
+    # check that one or the other is present 
+    if (data_dict is None) & (glob_patterns is None):
+        raise ValueError('One of file dictionary or path to files is required.')
+    elif (data_dict is not None) & (glob_patterns is not None): 
+        raise ValueError('Only one of file dictionary or path to files can be supplied.')
+    
+    # check that the data dict is valid 
+     if data_dict is not None:
+        for key in data_dict.keys(): 
+            # check that each input is a tuple of filepaths 
+            if len(data_dict[key] != 2):
+                raise ValueError('Input should be a tuple of .gff filepaths and .fasta filepaths')
+            # check that each input is a valid path 
+            elif not (os.path.isfile(data_dict[key][1])):
+                raise ValueError('The input .gff path does not exist.')
+            elif ('.gff' not in data_dict[key][1]):
+                raise ValueError('Input filepath given for .gff argument is not an expected .gff filetype.')
+            elif not (os.path.isfile(data_dict[key][2])):
+                raise ValueError('The input .fasta path does not exist.')
+            elif ('.fa' not in data_dict[key][2]) | ('.fna' not in data_dict[key][2]):
+                raise ValueError('Input filepath given for .fasta argument is not an expected .fasta filetype.')
+        return data_dict
+
+    if glob_pattern is not None:
+    # process glob patterns into a data dict if it's not present
+    # return processed data_dict 
+
 # step 1: concatenate annotations together 
-def concat_annotations(file_dict = None, glob_pattern=None): 
+def concat_annotations(data_dict): 
     """This function takes directory containing several 
     .gff/.csv files and concatenates them into a pd.DataFrame
     to make parsing easier for downstream steps.
@@ -51,41 +77,14 @@ def concat_annotations(file_dict = None, glob_pattern=None):
     files_cols: ending column names desired
     to_remove: names of problematic files 
     """
-    if (file_dict is None) & (glob_pattern is None):
-        raise ValueError('One of file dictionary or path to files is required.')
-    elif (file_dict is not None) & (glob_pattern is not None): 
-        raise ValueError('Only one of file dictionary or path to files can be supplied.')
-    
     dataframes = []
-
-    if file_dict is not None:
-        for key in file_dict.keys(): 
+    for key in data_dict.keys(): 
+        # read the gff file  
+        df = _read_annotation(data_dict[key][1])
         # add the key to each dataframe as the filename column
-            df = file_dict[key]
-            # check that the dimensions are correct
-            if len(df.columns) != 9: 
-                raise ValueError(key + ' in file dictionary does not have the correct GFF dimensions')
-            # check that column names are correct 
-            elif len(set(df.columns) & set(GFF_COLUMNS)) != 9: 
-                raise ValueError(key + ' in file dictionary does not have the correct GFF columns')
-            df.insert(loc=0, column='filename', value=key)
-            dataframes.append(df)
-
-    if glob_pattern is not None:
-        files = glob.glob(glob_pattern)
-        if files == []:
-            raise ValueError('Path contains no files')
-        for f in files:
-            if ('.gff' not in f) & ('.txt' not in f) & ('.tsv' not in f):
-                raise ValueError('Path contains unexpected filetype')
-
-            gff_read = _read_annotation(f)
-            # extract filename and add it to the dataframe
-            name = os.path.basename(f)
-            end_index = name.index('.') # get rid of .gff 
-            gff_read.insert(loc=0, column='filename', value=name[:end_index])
-            dataframes.append(gff_read)
-    # concat everything in the list
+        df.insert(loc=0, column='filename', value=key)
+        dataframes.append(df)
+    # concat everything in the list 
     return pd.concat(dataframes).reset_index(drop=True)
 
 # step 2: filter to coding sequences (or something else)
@@ -173,41 +172,3 @@ def wrapper_func(file_dict=None, glob_pattern=None, pfam=True,
         filtered = filter_features(feats, 'gene', filter_value)
     
     return filtered
-    
-# step 6: make bed files and extract sequence
-def _make_fasta_name(x, col_to_sort):
-    return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
-
-def extract_sequence(feats_df, out_path, col_to_sort):
-    """Function to output bed files of all annotated pfams/genes"""
-    # ensure that feats_df.start is numeric
-    feats_df.start = feats_df.start.astype('float') 
-    feats_grouped = feats_df.groupby([col_to_sort, 'filename'])
-    feats_df.insert(loc=0, column='rank', 
-                    value=feats_grouped['start'].rank().astype('int'))
-    fasta_names = feats_df.apply(_make_fasta_name, args=(col_to_sort, ), axis=1)
-    feats_df.insert(loc=0, column='name', value=fasta_names)
-
-    for f_id in feats_df[col_to_sort].unique():
-        f_df = feats_df.loc[feats_df[col_to_sort]==f_id]
-        unique_files = feats_df['filename'].unique()
-
-        if not os.path.exists(out_path + f_id):
-            os.mkdir(out_path + f_id + '/')
-        
-        for f in unique_files:
-            sub_df = f_df.loc[f_df['filename']==f]
-            #bed_file = pybedtools.bedtool.BedTool.from_dataframe(sub_df[BED_COLUMNS])
-            #fasta_path = fasta_source + f + '.fna'
-            #subseq = bed_file.sequence(fi=fasta_path)
-            #print(subseq)
-            # save the subsetted path 
-            bed_name = out_path + f_id + '/' + f + '.bed'
-            sub_df[BED_COLUMNS].to_csv(bed_name, index=False, header=False, sep='\t')
-
-# in unix: concatenate fasta files and do msa
-# def: convert sth to fasta 
-# in unix: make all letters uppercase
-# def: import msa into q2-phylogeny and run MAFFT 
-# def: make feature table 
-# in unix: convert txt to biom table

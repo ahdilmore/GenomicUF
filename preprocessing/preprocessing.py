@@ -100,7 +100,7 @@ def concat_annotations(data_dict):
     dataframes = []
     for key in data_dict.keys(): 
         # read the gff file  
-        df = _read_annotation(data_dict[key][1])
+        df = _read_annotation(data_dict[key][0])
         # add the key to each dataframe as the filename column
         df.insert(loc=0, column='filename', value=key)
         dataframes.append(df)

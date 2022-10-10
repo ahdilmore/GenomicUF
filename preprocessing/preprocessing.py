@@ -39,15 +39,15 @@ def _read_annotation(path_to_annot):
         raise ValueError(path_to_annot + 'does not have correct GFF dimensions')
     return pd.DataFrame(columns=GFF_COLUMNS, data=array)
 
-def process_data_dict(glob_patterns=None, data_dict=None):
+def process_data_dict(glob_pattern=None, data_dict=None, gff_ext = '.gff', fa_ext='.fa'):
     # check that one or the other is present 
-    if (data_dict is None) & (glob_patterns is None):
+    if (data_dict is None) & (glob_pattern is None):
         raise ValueError('One of file dictionary or path to files is required.')
-    elif (data_dict is not None) & (glob_patterns is not None): 
+    elif (data_dict is not None) & (glob_pattern is not None): 
         raise ValueError('Only one of file dictionary or path to files can be supplied.')
     
     # check that the data dict is valid 
-     if data_dict is not None:
+    if data_dict is not None:
         for key in data_dict.keys(): 
             # check that each input is a tuple of filepaths 
             if len(data_dict[key] != 2):
@@ -63,9 +63,29 @@ def process_data_dict(glob_patterns=None, data_dict=None):
                 raise ValueError('Input filepath given for .fasta argument is not an expected .fasta filetype.')
         return data_dict
 
-    if glob_pattern is not None:
-    # process glob patterns into a data dict if it's not present
-    # return processed data_dict 
+    elif glob_pattern is not None:
+        directory_name = os.path.dirname(glob_pattern)
+        sample_names = [os.path.basename(x) for x in glob.glob(glob_pattern)]
+        data_dict = {}
+
+        for s in sample_names:
+            # get fasta and gff
+            gff_file = glob.glob(directory_name + '/' + s + '/*' + gff_ext)
+            fasta_file = glob.glob(directory_name + '/' + s + '/*' + fa_ext)
+
+            # check that these are unique 
+            if len(gff_file) == 0: 
+                raise ValueError('No .gff files found in a subdirectory.')
+            elif len(fasta_file) == 0:
+                raise ValueError('No .fasta files found in a subdirectory.')
+            elif len(gff_file) != 1: 
+                raise ValueError('More than one .gff file found in a subdirectory.')
+            elif len(fasta_file) != 1: 
+                raise ValueError('More than one .fasta file found in a subdirectory.')
+
+            # add to data dictionary
+            data_dict[s] = (gff_file[0], fasta_file[0])
+        return data_dict
 
 # step 1: concatenate annotations together 
 def concat_annotations(data_dict): 
@@ -155,11 +175,13 @@ def filter_features(features_df, feature_col, min_value):
     return features_df.loc[features_df[feature_col].isin(filt)]
 
 # step 5: wrap to make a list of total features 
-def wrapper_func(file_dict=None, glob_pattern=None, pfam=True,
+def wrapper_func(data_dict=None, glob_pattern=None, pfam=True,
                  feature_value='CDS', filter_value=5):
-    
+    # check or make data dict 
+    data_dict = process_data_dict(glob_pattern, data_dict)
+
     # get all annotations 
-    annots = concat_annotations(file_dict, glob_pattern)
+    annots = concat_annotations(data_dict)
 
     # filter annots to feature of interest
     feats = filter_annotations(annots, feature_value)

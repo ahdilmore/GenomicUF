@@ -3,6 +3,7 @@ import numpy as np
 import glob
 import os
 import warnings
+from pybedtools import BedTool
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
@@ -155,19 +156,19 @@ def filter_features(features_df, feature_col, min_value):
     return features_df.loc[features_df[feature_col].isin(filt)]
 
 # step 5: wrap to make a list of total features 
-def wrapper_func(files_dir, files_pattern, pfam=True,
+def wrapper_func(file_dict=None, glob_pattern=None, pfam=True,
                  feature_value='CDS', filter_value=5):
     
     # get all annotations 
-    annots = concat_annotations(files_dir, files_pattern)
+    annots = concat_annotations(file_dict, glob_pattern)
 
     # filter annots to feature of interest
     feats = filter_annotations(annots, feature_value)
 
     # extract Pfams if flag is raised and filter Pfams
     if pfam: 
-        feats = extract_pfam(feats)
-        filtered = filter_features(feats, 'Pfam', filter_value)
+        pfam_feats = extract_pfam(feats)
+        filtered = filter_features(pfam_feats, 'Pfam', filter_value)
     else: 
         filtered = filter_features(feats, 'gene', filter_value)
     
@@ -177,41 +178,31 @@ def wrapper_func(files_dir, files_pattern, pfam=True,
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
 
-def extract_sequence(feats_df, fasta_dir, out_path, pfam=True):
+def extract_sequence(feats_df, fasta_source, out_path, col_to_sort):
     """Function to output bed files of all annotated pfams/genes"""
-    # assign sort variable based on pfam flag
-    if pfam: 
-        sort='Pfam'
-    else: 
-        sort='gene'
-
-    # apply groupby and apply functions based on sort variable    
-    grouping = feats_df.groupby([sort, 'filename'])
-    fasta_name = feats_df.apply(_make_fasta_name, args=(sort, ), axis=1)
-    
-    # insert rank and fasta_name columns
+    # ensure that feats_df.start is numeric
+    feats_df.start = feats_df.start.astype('float') 
+    feats_grouped = feats_df.groupby([col_to_sort, 'filename'])
     feats_df.insert(loc=0, column='rank', 
-                    value=grouping['start'].rank().astype('int'))
-    feats_df.insert(loc=0, column='name', value=fasta_name)
+                    value=feats_grouped['start'].rank().astype('int'))
+    fasta_names = feats_df.apply(_make_fasta_name, args=(col_to_sort, ), axis=1)
+    feats_df.insert(loc=0, column='name', value=fasta_names)
 
-    for f_id in feats_df[sort].unique():
-        df = feats_df.loc[feats_df[sort]==f_id]
-        unique_files = df['filename'].unique()
+    for f_id in feats_df[col_to_sort].unique():
+        f_df = feats_df.loc[feats_df[col_to_sort]==f_id]
+        unique_files = feats_df['filename'].unique()
 
         if not os.path.exists(out_path + f_id):
             os.mkdir(out_path + f_id + '/')
         
         for f in unique_files:
-            sub_df = df.loc[df['filename']==f]
-            bed_name = out_path + f_id + '/' + f + '.bed'
-            
-            # ENH: use pybedtools instead of relying on CLI
-            #bed_file = BedTool.from_dataframe(sub_df[BED_COLUMNS])
-            #fasta_path = fasta_dir + f + '.fna'
-            #subseq = bed_file.sequence(fi=fasta_path)
-            
+            sub_df = f_df.loc[f_df['filename']==f]
+            bed_file = BedTool.from_dataframe(sub_df[BED_COLUMNS])
+            fasta_path = fasta_source + f + '.fna'
+            subseq = bed_file.sequence(fi=fasta_path)
+            print(subseq)
             # save the subsetted path 
-            sub_df[BED_COLUMNS].to_csv(bed_name, index=False, header=False, sep='\t')
+            #sub_df[BED_COLUMNS].to_csv(bed_name, index=False, header=False, sep='\t')
 
 # in unix: concatenate fasta files and do msa
 # def: convert sth to fasta 

@@ -175,10 +175,10 @@ def filter_features(features_df, feature_col, min_value):
     return features_df.loc[features_df[feature_col].isin(filt)]
 
 # step 5: wrap to make a list of total features 
-def wrapper_func(data_dict=None, glob_pattern=None, pfam=True,
-                 feature_value='CDS', filter_value=5):
+def wrapper_func(data_dict=None, glob_pattern=None, gff_ext = '.gff', fa_ext='.fa', 
+                 pfam=True, feature_value='CDS', filter_value=5):
     # check or make data dict 
-    data_dict = process_data_dict(glob_pattern, data_dict)
+    data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 
     # get all annotations 
     annots = concat_annotations(data_dict)

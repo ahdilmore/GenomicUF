@@ -3,7 +3,7 @@ import numpy as np
 import glob
 import os
 import warnings
-from pybedtools import BedTool
+import pybedtools
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
@@ -178,7 +178,7 @@ def wrapper_func(file_dict=None, glob_pattern=None, pfam=True,
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
 
-def extract_sequence(feats_df, fasta_source, out_path, col_to_sort):
+def extract_sequence(feats_df, out_path, col_to_sort):
     """Function to output bed files of all annotated pfams/genes"""
     # ensure that feats_df.start is numeric
     feats_df.start = feats_df.start.astype('float') 
@@ -197,12 +197,13 @@ def extract_sequence(feats_df, fasta_source, out_path, col_to_sort):
         
         for f in unique_files:
             sub_df = f_df.loc[f_df['filename']==f]
-            bed_file = BedTool.from_dataframe(sub_df[BED_COLUMNS])
-            fasta_path = fasta_source + f + '.fna'
-            subseq = bed_file.sequence(fi=fasta_path)
-            print(subseq)
+            #bed_file = pybedtools.bedtool.BedTool.from_dataframe(sub_df[BED_COLUMNS])
+            #fasta_path = fasta_source + f + '.fna'
+            #subseq = bed_file.sequence(fi=fasta_path)
+            #print(subseq)
             # save the subsetted path 
-            #sub_df[BED_COLUMNS].to_csv(bed_name, index=False, header=False, sep='\t')
+            bed_name = out_path + f_id + '/' + f + '.bed'
+            sub_df[BED_COLUMNS].to_csv(bed_name, index=False, header=False, sep='\t')
 
 # in unix: concatenate fasta files and do msa
 # def: convert sth to fasta 

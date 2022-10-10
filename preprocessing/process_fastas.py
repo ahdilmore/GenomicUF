@@ -19,6 +19,7 @@ def extract_sequence(data_dict, feats_df, col_to_sort, out_path):
     fasta_names = feats_df.apply(_make_fasta_name, args=(col_to_sort, ), axis=1)
     feats_df.insert(loc=0, column='name', value=fasta_names)
 
+    wd = os.getcwd()
     for f_id in feats_df[col_to_sort].unique():
         f_df = feats_df.loc[feats_df[col_to_sort]==f_id]
         unique_files = feats_df['filename'].unique()
@@ -31,3 +32,7 @@ def extract_sequence(data_dict, feats_df, col_to_sort, out_path):
             bed_file = BedTool.from_dataframe(sub_df[BED_COLUMNS])
             fasta_path = data_dict[f][1]
             bed_file.sequence(fi=fasta_path, name=True, fo=out_path+f_id+'/'+f+'.fa')
+        
+        os.chdir(out_path + f_id)
+        os.system("cat *.fa > merged.fa")
+        os.chdir(wd)

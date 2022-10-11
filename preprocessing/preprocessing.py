@@ -39,7 +39,10 @@ def _read_annotation(path_to_annot):
         raise ValueError(path_to_annot + 'does not have correct GFF dimensions')
     return pd.DataFrame(columns=GFF_COLUMNS, data=array)
 
-def process_data_dict(glob_pattern=None, data_dict=None, gff_ext = '.gff', fa_ext='.fa'):
+def process_data_dict(glob_pattern: str = None, 
+                      data_dict : dict = None,
+                      gff_ext : str = '.gff', 
+                      fa_ext : str ='.fa'):
     # check that one or the other is present 
     if (data_dict is None) & (glob_pattern is None):
         raise ValueError('One of file dictionary or path to files is required.')
@@ -51,16 +54,16 @@ def process_data_dict(glob_pattern=None, data_dict=None, gff_ext = '.gff', fa_ex
         for key in data_dict.keys(): 
             # check that each input is a tuple of filepaths 
             if len(data_dict[key] != 2):
-                raise ValueError('Input should be a tuple of .gff filepaths and .fasta filepaths')
+                raise ValueError('Dictionary has keys that are not tuples.')
             # check that each input is a valid path 
             elif not (os.path.isfile(data_dict[key][1])):
-                raise ValueError('The input .gff path does not exist.')
-            elif ('.gff' not in data_dict[key][1]):
-                raise ValueError('Input filepath given for .gff argument is not an expected .gff filetype.')
+                raise ValueError('The input ' + gff_ext  ' path does not exist.')
+            elif (gff_ext not in data_dict[key][1]):
+                raise ValueError('Filepath given for annotations does not have ' + gff_ext + ' extension.')
             elif not (os.path.isfile(data_dict[key][2])):
-                raise ValueError('The input .fasta path does not exist.')
-            elif ('.fa' not in data_dict[key][2]) | ('.fna' not in data_dict[key][2]):
-                raise ValueError('Input filepath given for .fasta argument is not an expected .fasta filetype.')
+                raise ValueError('The input ' + fa_ext + ' path does not exist.')
+            elif (fa_ext not in data_dict[key][2]):
+                raise ValueError('Filepath given for fasta argument does not have ' + fa_ext + ' extension.')
         return data_dict
 
     elif glob_pattern is not None:
@@ -88,7 +91,7 @@ def process_data_dict(glob_pattern=None, data_dict=None, gff_ext = '.gff', fa_ex
         return data_dict
 
 # step 1: concatenate annotations together 
-def concat_annotations(data_dict): 
+def concat_annotations(data_dict : dict): 
     """This function takes directory containing several 
     .gff/.csv files and concatenates them into a pd.DataFrame
     to make parsing easier for downstream steps.
@@ -108,7 +111,7 @@ def concat_annotations(data_dict):
     return pd.concat(dataframes).reset_index(drop=True)
 
 # step 2: filter to coding sequences (or something else)
-def filter_annotations(annotation_df, feature_value):
+def filter_annotations(annotation_df : pd.DataFrame, feature_value : str):
     """Filter annotations to a specific feature type (i.e. coding
     sequence, tRNAs, etc."""
     if 'feature' not in annotation_df.columns:
@@ -145,7 +148,7 @@ def _split_attribute(df, cols_to_insert):
     df.drop(columns=['attribute'], inplace=True)
     return df
 
-def extract_pfam(features_df):
+def extract_pfam(features_df : pd.DataFrame):
     """Function extract Pfam features."""
     if 'attribute' not in features_df.columns: 
         raise ValueError('Attribute column not present in dataframe.')
@@ -165,18 +168,21 @@ def extract_pfam(features_df):
     return pfam
 
 # step 4: filter the features to certain value counts 
-def filter_features(features_df, feature_col, min_value):
+def filter_features(features_df : pd.DataFrame, feature_col : str, min_value : int):
     if (feature_col not in features_df.columns):
         raise ValueError('Column not found in dataframe provided.')
-    elif (isinstance(min_value, int)) == False:
-        raise ValueError('min_value provided is not an integer.')
     counts = features_df[feature_col].value_counts()
     filt = counts[counts > min_value].index
     return features_df.loc[features_df[feature_col].isin(filt)]
 
 # step 5: wrap to make a list of total features 
-def wrapper_func(data_dict=None, glob_pattern=None, gff_ext = '.gff', fa_ext='.fa', 
-                 pfam=True, feature_value='CDS', filter_value=5):
+def wrapper_func(data_dict : dict = None, 
+                 glob_pattern : str = None, 
+                 gff_ext : str = '.gff', 
+                 fa_ext : str = '.fa', 
+                 pfam : bool = True, 
+                 feature_value : str = 'CDS', 
+                 filter_value : int =5):
     # check or make data dict 
     data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 

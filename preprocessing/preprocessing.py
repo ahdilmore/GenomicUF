@@ -11,7 +11,7 @@ ATTRIBUTE_COLUMNS = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene',
 
 # preprocessing combines multiple steps from previous pipelines 
 # optional step 1: read the gff file 
-def _read_annotation(path_to_annot):
+def _read_annotation(path_to_annot) -> pd.DataFrame:
     with open(path_to_annot) as f:
             lines = f.readlines()
         
@@ -42,7 +42,7 @@ def _read_annotation(path_to_annot):
 def process_data_dict(glob_pattern: str = None, 
                       data_dict : dict = None,
                       gff_ext : str = '.gff', 
-                      fa_ext : str ='.fa'):
+                      fa_ext : str ='.fa') -> dict:
     # check that one or the other is present 
     if (data_dict is None) & (glob_pattern is None):
         raise ValueError('One of file dictionary or path to files is required.')
@@ -91,7 +91,7 @@ def process_data_dict(glob_pattern: str = None,
         return data_dict
 
 # step 1: concatenate annotations together 
-def concat_annotations(data_dict : dict): 
+def concat_annotations(data_dict : dict) -> pd.DataFrame: 
     """This function takes directory containing several 
     .gff/.csv files and concatenates them into a pd.DataFrame
     to make parsing easier for downstream steps.
@@ -111,7 +111,7 @@ def concat_annotations(data_dict : dict):
     return pd.concat(dataframes).reset_index(drop=True)
 
 # step 2: filter to coding sequences (or something else)
-def filter_annotations(annotation_df : pd.DataFrame, feature_value : str):
+def filter_annotations(annotation_df : pd.DataFrame, feature_value : str) -> pd.DataFrame:
     """Filter annotations to a specific feature type (i.e. coding
     sequence, tRNAs, etc."""
     if 'feature' not in annotation_df.columns:
@@ -135,7 +135,7 @@ def _sub_col(x, str_to_find, sep):
     else:
         return np.nan
 
-def _split_attribute(df, cols_to_insert):
+def _split_attribute(df, cols_to_insert) -> pd.DataFrame:
     """Helper function to split the attribute column in gff 
     files so that more meaningful information can be extracted"""
     # insert columns 
@@ -145,10 +145,9 @@ def _split_attribute(df, cols_to_insert):
                                              str_to_find=sub,
                                              sep=';')
     # remove attribute
-    df.drop(columns=['attribute'], inplace=True)
-    return df
+    return df.drop(columns=['attribute'])
 
-def extract_pfam(features_df : pd.DataFrame):
+def extract_pfam(features_df : pd.DataFrame) -> pd.DataFrame:
     """Function extract Pfam features."""
     if 'attribute' not in features_df.columns: 
         raise ValueError('Attribute column not present in dataframe.')
@@ -168,7 +167,7 @@ def extract_pfam(features_df : pd.DataFrame):
     return pfam
 
 # step 4: filter the features to certain value counts 
-def filter_features(features_df : pd.DataFrame, feature_col : str, min_value : int):
+def filter_features(features_df : pd.DataFrame, feature_col : str, min_value : int) -> pd.DataFrame:
     if (feature_col not in features_df.columns):
         raise ValueError('Column not found in dataframe provided.')
     counts = features_df[feature_col].value_counts()
@@ -182,7 +181,7 @@ def wrapper_func(data_dict : dict = None,
                  fa_ext : str = '.fa', 
                  pfam : bool = True, 
                  feature_value : str = 'CDS', 
-                 filter_value : int =5):
+                 filter_value : int =5) -> pd.DataFrame:
     # check or make data dict 
     data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 

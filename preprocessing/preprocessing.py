@@ -3,6 +3,7 @@ import numpy as np
 import glob
 import os
 import warnings
+from typing import Tuple
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
@@ -181,7 +182,7 @@ def wrapper_func(data_dict : dict = None,
                  fa_ext : str = '.fa', 
                  pfam : bool = True, 
                  feature_value : str = 'CDS', 
-                 filter_value : int =5) -> pd.DataFrame:
+                 filter_value : int =5) -> Tuple[dict, pd.DataFrame]:
     # check or make data dict 
     data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 
@@ -198,4 +199,4 @@ def wrapper_func(data_dict : dict = None,
     else: 
         filtered = filter_features(feats, 'gene', filter_value)
     
-    return filtered
+    return data_dict, filtered

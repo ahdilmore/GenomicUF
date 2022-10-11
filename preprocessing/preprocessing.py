@@ -57,7 +57,7 @@ def process_data_dict(glob_pattern: str = None,
                 raise ValueError('Dictionary has keys that are not tuples.')
             # check that each input is a valid path 
             elif not (os.path.isfile(data_dict[key][1])):
-                raise ValueError('The input ' + gff_ext  ' path does not exist.')
+                raise ValueError('The input ' + gff_ext + ' path does not exist.')
             elif (gff_ext not in data_dict[key][1]):
                 raise ValueError('Filepath given for annotations does not have ' + gff_ext + ' extension.')
             elif not (os.path.isfile(data_dict[key][2])):

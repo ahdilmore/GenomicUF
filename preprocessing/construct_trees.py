@@ -8,6 +8,9 @@ from pybedtools import BedTool
 from Bio import AlignIO
 from qiime2.plugins import phylogeny
 BED_COLUMNS = ['seqname', 'start', 'end', 'name']
+METADATA_COLUMNS = ['mouse_name', 'time_point', 'isolate_number',
+                    'strain_type', 'bacteria', 'sequencing_lane',
+                    'additional_name']
 
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
@@ -137,12 +140,45 @@ def _make_tree_unaligned(path_to_unaligned, out_directory):
     if not _file_made(out_directory + feat_id + '/table.biom'):
         _make_biom_table(out_directory + feat_id + '/tree.nwk', feat_id)
 
+def _split_filename(x, col_name):
+    name_list = x.split('_')
+    if col_name == 'mouse_name':
+        return name_list[0]
+    elif col_name == 'time_point':
+        return name_list[1]
+    elif col_name == 'isolate_number':
+        return name_list[2]
+    elif col_name == 'additional_name':
+        if(len(name_list)==7):
+            return name_list[-4]
+        return np.nan
+    elif col_name == 'sequencing_lane':
+        return name_list[-3]
+    elif col_name == 'bacteria':
+        return name_list[-2]
+    elif col_name == 'strain_type':
+        return name_list[-1]
+
+def _make_metadata(sample_names):
+    df = pd.DataFrame(data={'sample_name': sample_names})
+    for colname in METADATA_COLUMNS:
+        df.insert(loc=0, column=colname,
+                  value=df['sample_name'].apply(_split_filename,
+                  col_name=colname))
+    df = df.set_index('sample_name')
+    return df
+    
 def tree_construction(data_dict: dict, 
                       feats_df: pd.DataFrame,
                       out_path: str, 
                       construction_feature : str = 'Pfam') -> None:
     # process the sequences for tree construction 
     _process_sequences(data_dict, feats_df, out_path, construction_feature)
+
+    # make metadata for permanova
+    metadata = _make_metadata(feats_df['filename'].unique())
+    metadata.to_csv(out_path + 'metadata.tsv', sep='\t')
+    
     # make subdirectory for tree information 
     if not os.path.exists(out_path + 'TreeData'):
             os.mkdir(out_path + 'TreeData')

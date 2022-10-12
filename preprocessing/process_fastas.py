@@ -1,8 +1,10 @@
 import pandas as pd
+import qiime2 as q2
 import os
 import glob
 from pybedtools import BedTool
 from Bio import AlignIO
+from qiime2.plugins import phylogeny
 BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 
 def _make_fasta_name(x, col_to_sort):
@@ -45,16 +47,16 @@ def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
         
         _merge_features(wd, out_path+f_id)
 
-def process_sequences(data_dict : dict, 
-                      feats_df : pd.DataFrame,
-                      out_path : str, 
-                      col_to_sort : str = 'Pfam') -> None:
+def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
+    # make subdirectory: sequence data 
+    if not os.path.exists(out_path + 'SequenceData'):
+            os.mkdir(out_path + 'SequenceData')
     # extract all the subsequences, merge to file for msa
-    _extract_sequence(data_dict, feats_df, col_to_sort, out_path)
+    _extract_sequence(data_dict, feats_df, col_to_sort, out_path + 'SequenceData/')
     
     if col_to_sort == 'Pfam':
         # do HMM Alignment  
-        merged_paths = glob.glob(out_path + '/*/merged.fa') 
+        merged_paths = glob.glob(out_path + 'SequenceData/*/merged.fa') 
         for path in merged_paths: 
             # set up variables for hmmfetch and hmmalign 
             dirname = os.path.dirname(path)
@@ -74,3 +76,40 @@ def process_sequences(data_dict : dict,
             upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
             awk_input = "awk 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}' %s > %s"%(msa_fa_out, upper_fa_out)
             os.system(awk_input)
+
+def _tree_made(tree_path):
+    return os.path.isfile(tree_path)
+
+def _make_tree_aligned(path_to_aligned, out_directory):
+    pfam_id = os.path.basename(os.path.dirname(path_to_aligned))
+    if not _tree_made(out_directory + pfam_id + '/tree.nwk'): 
+        # import aligned sequence into qiime2 & make tree 
+        msa = q2.Artifact.import_data(type='FeatureData[AlignedSequence]', view=path_to_aligned)
+        tree = phylogeny.methods.fasttree(alignment=msa).tree
+        q2.Artifact.export_data(tree, out_directory + pfam_id)
+
+def _make_tree_unaligned(path_to_unaligned, out_directory):
+    feat_id = os.path.basename(os.path.dirname(path_to_unaligned))
+    if not _tree_made(out_directory + feat_id + '/tree.nwk'):
+        # import aligned sequence into qiime2 & make tree
+        seq = q2.Artifact.import_data(type='FeatureData[Sequence]', view=path_to_unaligned)
+        tree = phylogeny.pipelines.align_to_tree_mafft_fasttree(sequences=seq).tree
+        q2.Artifact.export_data(tree, out_directory + feat_id)
+
+def tree_construction(data_dict: dict, 
+                      feats_df: pd.DataFrame,
+                      out_path: str, 
+                      construction_feature : str = 'Pfam') -> None:
+    # process the sequences for tree construction 
+    _process_sequences(data_dict, feats_df, out_path, construction_feature)
+    # make subdirectory for tree information 
+    if not os.path.exists(out_path + 'TreeData'):
+            os.mkdir(out_path + 'TreeData')
+    aligned_fastas = glob.glob(out_path + 'SequenceData/*/msa.upper.fa')
+    unaligned_fastas = glob.glob(out_path + 'SequenceData/*/merged.fa')
+    if aligned_fastas == []: 
+        for path in unaligned_fastas: 
+            _make_tree_unaligned(path, out_path+'TreeData/')
+    else:
+        for path in aligned_fastas: 
+            _make_tree_aligned(path, out_path+'TreeData/')

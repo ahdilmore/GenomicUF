@@ -1,7 +1,9 @@
 import pandas as pd
+import numpy as np
 import qiime2 as q2
 import os
 import glob
+import skbio
 from pybedtools import BedTool
 from Bio import AlignIO
 from qiime2.plugins import phylogeny
@@ -77,24 +79,63 @@ def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
             awk_input = "awk 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}' %s > %s"%(msa_fa_out, upper_fa_out)
             os.system(awk_input)
 
-def _tree_made(tree_path):
-    return os.path.isfile(tree_path)
+def _file_made(path):
+    return os.path.isfile(path)
+
+def _make_biom_table(tree_path, gene_name):
+    tree = skbio.io.read(tree_path, format="newick", into=skbio.TreeNode)
+    # intialize lists of nodes and sample names 
+    node_names = []
+    sample_names = []
+    # make list of node names 
+    for node in tree.tips():
+        node_names.append(node.name)
+    # make list of the sample names 
+    for name in node_names:
+        name = name[len(gene_name)+1:]
+        expanded_name = name.split("_")
+        final_index = expanded_name.index("mut")
+        sample_name = "_".join(expanded_name[: final_index + 1])
+        if sample_name not in sample_names:
+            sample_names.append(sample_name)
+	# put array together 
+    empty_array = np.zeros((len(sample_names), len(node_names)))
+    for i in range(len(sample_names)):
+        for j in range(len(node_names)):
+            if sample_names[i] in node_names[j]:
+                empty_array[i][j] = 1
+    biom_table = pd.DataFrame(data=empty_array, columns=node_names,
+                              index=sample_names)
+    biom_table = biom_table.T
+    # save biom table
+    txt_path = tree_path.replace('tree.nwk', 'table.txt')
+    biom_table.to_csv(txt_path, sep='\t')
+    # convert to .biom format for later use 
+    biom_path = tree_path.replace('tree.nwk', 'table.biom')
+    convert_txt_cmd = "biom convert -i %s -o %s --to-hdf5"%(txt_path, biom_path)
+    os.system(convert_txt_cmd)
 
 def _make_tree_aligned(path_to_aligned, out_directory):
     pfam_id = os.path.basename(os.path.dirname(path_to_aligned))
-    if not _tree_made(out_directory + pfam_id + '/tree.nwk'): 
+    if not _file_made(out_directory + pfam_id + '/tree.nwk'): 
         # import aligned sequence into qiime2 & make tree 
         msa = q2.Artifact.import_data(type='FeatureData[AlignedSequence]', view=path_to_aligned)
         tree = phylogeny.methods.fasttree(alignment=msa).tree
         q2.Artifact.export_data(tree, out_directory + pfam_id)
+    # make biom table based on the constructed tree
+    if not _file_made(out_directory + pfam_id + '/table.biom'):
+        _make_biom_table(out_directory + pfam_id + '/tree.nwk', pfam_id)
 
 def _make_tree_unaligned(path_to_unaligned, out_directory):
     feat_id = os.path.basename(os.path.dirname(path_to_unaligned))
-    if not _tree_made(out_directory + feat_id + '/tree.nwk'):
+    if not _file_made(out_directory + feat_id + '/tree.nwk'):
         # import aligned sequence into qiime2 & make tree
         seq = q2.Artifact.import_data(type='FeatureData[Sequence]', view=path_to_unaligned)
         tree = phylogeny.pipelines.align_to_tree_mafft_fasttree(sequences=seq).tree
         q2.Artifact.export_data(tree, out_directory + feat_id)
+    # make biom table based on the constructed tree
+    if not _file_made(out_directory + feat_id + '/table.biom'):
+        _make_biom_table(out_directory + feat_id + '/tree.nwk', feat_id)
 
 def tree_construction(data_dict: dict, 
                       feats_df: pd.DataFrame,

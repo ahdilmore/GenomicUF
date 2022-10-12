@@ -1,23 +1,33 @@
 import pandas as pd
-import os 
+import os
+import glob
 from pybedtools import BedTool
+from Bio import AlignIO
 BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
 
-def extract_sequence(data_dict, feats_df, col_to_sort, out_path):
-    """Function to output bed files of all annotated pfams/genes"""
+def _prep_dataframe_for_bedtools(feats_df, col_to_sort): 
     # ensure that feats_df.start and feats_df.end are integers
     feats_df.start = feats_df.start.astype('int')
     feats_df.end = feats_df.end.astype('int')
-    # get rank for tree construction 
+    # get rank for placing multiple sequences in tree
     feats_grouped = feats_df.groupby([col_to_sort, 'filename'])
     feats_df.insert(loc=0, column='rank', 
                     value=feats_grouped['start'].rank().astype('int'))
     # make name of fasta file using ranks calculated above 
     fasta_names = feats_df.apply(_make_fasta_name, args=(col_to_sort, ), axis=1)
     feats_df.insert(loc=0, column='name', value=fasta_names)
+
+def _merge_features(wd, dir_to_merge):
+    os.chdir(dir_to_merge)
+    os.system("cat *.fa > merged.fa")
+    os.chdir(wd)
+
+def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
+    """Function to output bed files of all annotated pfams/genes"""
+    _prep_dataframe_for_bedtools(feats_df)
 
     wd = os.getcwd()
     for f_id in feats_df[col_to_sort].unique():
@@ -33,6 +43,34 @@ def extract_sequence(data_dict, feats_df, col_to_sort, out_path):
             fasta_path = data_dict[f][1]
             bed_file.sequence(fi=fasta_path, name=True, fo=out_path+f_id+'/'+f+'.fa')
         
-        os.chdir(out_path + f_id)
-        os.system("cat *.fa > merged.fa")
-        os.chdir(wd)
+        _merge_features(wd, out_path+f_id)
+
+def process_sequences(data_dict : dict, 
+                      feats_df : pd.DataFrame,
+                      out_path : str, 
+                      col_to_sort : str = 'Pfam') -> None:
+    # extract all the subsequences, merge to file for msa
+    _extract_sequence(data_dict, feats_df, col_to_sort, out_path)
+    
+    if col_to_sort == 'Pfam':
+        # do HMM Alignment  
+        merged_paths = glob.glob(out_path + '/*/merged.fa') 
+        for path in merged_paths: 
+            # set up variables for hmmfetch and hmmalign 
+            dirname = os.path.dirname(path)
+            pfid = os.path.basename(dirname)
+            pf_hmm_out = dirname + '/hmmfile.hmm'
+            msa_sth_out = dirname + '/msa.sth'
+            # do hmmfetch, hmmalign 
+            hmmfetch_cmd = "hmmfetch hmmer_assets/Pfam-A.hmm %s > %s"%(pfid, pf_hmm_out)
+            hmmalign_cmd = "hmmalign -o %s --trim %s"%(msa_sth_out, path)
+            os.system(hmmfetch_cmd)
+            os.system(hmmalign_cmd)
+            # convert sth to .fa file
+            msa_fa_out = msa_sth_out.replace('.sth', '.mixedcase.fa')
+            AlignIO.convert(in_file=msa_sth_out, in_format='stockholm', 
+                            out_format='fasta', out_file=msa_fa_out)
+            # convert all characters to uppercase for qiime2 import 
+            upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
+            awk_input = "awk 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}' %s > %s"%(msa_fa_out, upper_fa_out)
+            os.system(awk_input)

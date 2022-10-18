@@ -54,17 +54,17 @@ def process_data_dict(glob_pattern: str = None,
     if data_dict is not None:
         for key in data_dict.keys(): 
             # check that each input is a tuple of filepaths 
-            if len(data_dict[key] != 2):
-                raise ValueError('Dictionary has keys that are not tuples.')
-            # check that each input is a valid path 
-            elif not (os.path.isfile(data_dict[key][1])):
-                raise ValueError('The input ' + gff_ext + ' path does not exist.')
-            elif (gff_ext not in data_dict[key][1]):
+            if len(data_dict[key]) != 2:
+                raise ValueError('More than two filepaths given in a data dictionary.')
+            # check that each input is a valid path
+            elif (gff_ext not in data_dict[key][0]):
                 raise ValueError('Filepath given for annotations does not have ' + gff_ext + ' extension.')
-            elif not (os.path.isfile(data_dict[key][2])):
-                raise ValueError('The input ' + fa_ext + ' path does not exist.')
-            elif (fa_ext not in data_dict[key][2]):
+            elif not (os.path.isfile(data_dict[key][0])):
+                raise ValueError('The input ' + gff_ext + ' path does not exist.')
+            elif (fa_ext not in data_dict[key][1]):
                 raise ValueError('Filepath given for fasta argument does not have ' + fa_ext + ' extension.')
+            elif not (os.path.isfile(data_dict[key][1])):
+                raise ValueError('The input ' + fa_ext + ' path does not exist.')
         return data_dict
 
     elif glob_pattern is not None:
@@ -72,6 +72,9 @@ def process_data_dict(glob_pattern: str = None,
         sample_names = [os.path.basename(x) for x in glob.glob(glob_pattern)]
         data_dict = {}
 
+        if len(sample_names) == 0: 
+            raise ValueError('No files found after globbing!')
+        
         for s in sample_names:
             # get fasta and gff
             gff_file = glob.glob(directory_name + '/' + s + '/*' + gff_ext)
@@ -79,13 +82,13 @@ def process_data_dict(glob_pattern: str = None,
 
             # check that these are unique 
             if len(gff_file) == 0: 
-                raise ValueError('No .gff files found in a subdirectory.')
+                raise ValueError('No ' + gff_ext + ' files found in a subdirectory.')
             elif len(fasta_file) == 0:
-                raise ValueError('No .fasta files found in a subdirectory.')
+                raise ValueError('No ' + fa_ext + ' files found in a subdirectory.')
             elif len(gff_file) != 1: 
-                raise ValueError('More than one .gff file found in a subdirectory.')
+                raise ValueError('More than one ' + gff_ext  + ' file found in a subdirectory.')
             elif len(fasta_file) != 1: 
-                raise ValueError('More than one .fasta file found in a subdirectory.')
+                raise ValueError('More than one ' + fa_ext + ' file found in a subdirectory.')
 
             # add to data dictionary
             data_dict[s] = (gff_file[0], fasta_file[0])

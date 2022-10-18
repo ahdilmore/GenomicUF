@@ -5,8 +5,6 @@ import pytest
 sys.path.append('../')
 from preprocessing.preprocessing import *
 
-GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
-               'end', 'score', 'strand', 'frame', 'attribute']
 VALID_PATH = 'data/adaptation_AZ20/*S*'
 VALID_DATA_DICT, VALID_OUT = wrapper_func(glob_pattern=VALID_PATH, fa_ext='.fna')
 VALID_DF = concat_annotations(VALID_DATA_DICT)

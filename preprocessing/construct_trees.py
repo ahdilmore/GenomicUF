@@ -170,15 +170,18 @@ def _make_metadata(sample_names):
     
 def tree_construction(data_dict: dict, 
                       feats_df: pd.DataFrame,
-                      out_path: str, 
+                      out_path: str,
                       construction_feature : str = 'Pfam') -> None:
+    '''This pipeline constructs per-gene trees that will be used downstream
+    in single UniFrac or meta UniFrac calculations. 
+    data_dict: dictionary where keys are sample names and values are a tuple of the
+    .gff filepath and the .fa filepath for that sample
+    feats_df: processed pd.DataFrame with filtered annotations that was made in preprocessing steps
+    out_path: an output directory where the subsetted sequencing data and the tree data will be written.
+    construction_feature: determines whether we will be using Pfam or gene to construct trees.'''
     # process the sequences for tree construction 
     _process_sequences(data_dict, feats_df, out_path, construction_feature)
-
-    # make metadata for permanova
-    metadata = _make_metadata(feats_df['filename'].unique())
-    metadata.to_csv(out_path + 'metadata.tsv', sep='\t')
-    
+ 
     # make subdirectory for tree information 
     if not os.path.exists(out_path + 'TreeData'):
             os.mkdir(out_path + 'TreeData')

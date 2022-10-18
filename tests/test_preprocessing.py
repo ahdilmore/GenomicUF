@@ -2,41 +2,21 @@ import numpy as np
 import pandas as pd
 import sys
 import pytest
-sys.path.append('../preprocessing/')
+sys.path.append('../')
 from preprocessing.preprocessing import *
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
-VALID_PATH = 'data/adaptation_AZ20/*S*/'
-VALID_DATA_DICT, VALID_DF = wrapper_func(glob_pattern=VALID_PATH, fa_ext='.fna')
-
-# tests for concatenating dataframes
-def _test_paths(): 
-    # no files present 
-    invalid_path = 'data/hazels_files/'
-    with pytest.raises(ValueError, match='no files'):
-        concat_annotations(glob_pattern=invalid_path)
-
-    # files present, but has some besides gffs 
-    no_gffs = 'data/adaptation_AZ51/46R_Day7_13_S292/'
-    with pytest.raises(ValueError, match='unexpected filetype'):
-        concat_annotations(glob_pattern=no_gffs)
-
-    # test valid path 
-    assert VALID_DF.shape == (58906, 10)
-
-def _test_empty_file_warning():
-    # checks that user is warned about files without genomic information
-    contains_empty_file = 'data/adaptation_AZ51/*S*/*.gff'
-    with pytest.warns(UserWarning, match='does not contain'):
-        concat_annotations(glob_pattern=contains_empty_file)
+VALID_PATH = 'data/adaptation_AZ20/*S*'
+VALID_DATA_DICT, VALID_OUT = wrapper_func(glob_pattern=VALID_PATH, fa_ext='.fna')
+VALID_DF = concat_annotations(VALID_DATA_DICT)
 
 def test_process_data_dict():
     # test neither data_dict nor glob_pattern given 
     with pytest.raises(ValueError, match='One of'):
         process_data_dict(fa_ext='.fna')
     # test both data_dict and glob_pattern given
-    with pytest.raises(ValueError, 'Only one'):
+    with pytest.raises(ValueError, match='Only one'):
         process_data_dict(glob_pattern=VALID_PATH, data_dict=VALID_DATA_DICT)
     
     # test invalid data_dicts 
@@ -82,45 +62,15 @@ def test_process_data_dict():
                               'data/glob_paths/valid/sample_1/46R_Day7_13_S292_AZ51_mut.fna')}
     assert process_data_dict(glob_pattern=valid_pattern, fa_ext='.fna') == valid_out
 
-def _test_gff_columns_present(): 
-    # data setup 
-    data_1 = [[1, 2, 3, 4, 5, 6, 7, 8, 9],
-              [10, 11, 12, 13, 14, 15, 16, 17, 18]]
-    data_2 = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]
-    data_3 = [[9, 8, 7, 6, 5, 4, 3, 2, 1]]
-    incorrect_columns = {
-        'file_1' : pd.DataFrame(columns=GFF_COLUMNS, data=data_1), 
-        'file_2' : pd.DataFrame(data=data_2)
-    }
-    incorrect_col_names = {
-        'file_1' : pd.DataFrame(columns=GFF_COLUMNS, data=data_1), 
-        'file_3' : pd.DataFrame(data=data_3)
-    }
-    correct_names = {
-        'file_1' : pd.DataFrame(columns=GFF_COLUMNS, data=data_1), 
-        'file_3' : pd.DataFrame(columns=GFF_COLUMNS, data=data_3)
-    }
-
-    # input dataframes have incorrect column dimensions
-    with pytest.raises(ValueError, match='dimensions'):
-        concat_annotations(file_dict=incorrect_columns)
-    
-    with pytest.raises(ValueError, match='columns'):
-        concat_annotations(file_dict=incorrect_col_names)
-    
-    # check that correct_names gives no error
-    concat_correct_format = concat_annotations(file_dict=correct_names)
-    assert sum(concat_correct_format.columns == ['filename'] + GFF_COLUMNS) == 10
-    assert concat_correct_format.shape == (3, 10)
-
-# def test_concat_annotations(): 
-# test what happens when dictionary not given
-# test what happens when .gff file is empty 
-# e.g. call the warning test above 
-# test what happens when formatting is off 
-# e.g. refactor _test_gff_columns_present(): 
-
-# test filter_annotations 
+def test_concat_annotations():
+    # check that the warning shows up 
+    az51_path = 'data/adaptation_AZ51/*S*'
+    az51_data_dict = process_data_dict(glob_pattern=az51_path, fa_ext='.fna')
+    with pytest.warns(UserWarning, match='does not contain'):
+        concat_annotations(data_dict=az51_data_dict)
+    az51_df = concat_annotations(data_dict=az51_data_dict)
+    assert az51_df.shape == (35432, 10)
+ 
 def test_filter_annotations():
     invalid_df = VALID_DF.rename(columns={'feature': 'feature_id'})
     # check that feature column exists in dataframe
@@ -133,7 +83,7 @@ def test_filter_annotations():
     assert cds_only.shape == (28907, 10)
 
 # test pfam filter 
-def test_pfam_filter(): 
+def test_extract_pfam(): 
     # check that the inference column is present in the dataframe 
     invalid_df = VALID_DF.drop(columns=['attribute'])
     with pytest.raises(ValueError, match='Attribute column'):
@@ -148,15 +98,8 @@ def test_pfam_filter():
 def test_filter_features(): 
     # check that col exists in dataframe 
     with pytest.raises(ValueError, match='Column not found'):
-        filter_features(features_df=VALID_DF, feature_col='feature_id', value=5)
-    # check that min value is an integer
-    with pytest.raises(ValueError, match='integer'):
-        filter_features(features_df=VALID_DF, feature_col='feature', value='CDS')
+        filter_features(features_df=VALID_DF, feature_col='feature_id', min_value=5)
     valid_cds = filter_annotations(annotation_df=VALID_DF, feature_value='CDS')
     pfam_valid = extract_pfam(valid_cds)
-    feat_filt = filter_features(feature_df=pfam_valid, feature_col='Pfam', value=10)
+    feat_filt = filter_features(features_df=pfam_valid, feature_col='Pfam', min_value=10)
     assert feat_filt.shape == (199, 20)
-
-# def test_extract_pfam(): 
-# ensure that .attribute column is present since this is where the Pfam annotation will be present 
-# check that there are no NaNs in the inference column (which would indicate not filtered)

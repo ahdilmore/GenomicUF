@@ -36,8 +36,6 @@ def _read_annotation(path_to_annot) -> pd.DataFrame:
     if (array == [[]]) | (array==[]): 
         warnings.warn(path_to_annot + ' does not contain genomic annotation information')
         return pd.DataFrame([])
-    elif np.array(array).shape[1] != 9: 
-        raise ValueError(path_to_annot + 'does not have correct GFF dimensions')
     return pd.DataFrame(columns=GFF_COLUMNS, data=array)
 
 def process_data_dict(glob_pattern: str = None, 
@@ -85,7 +83,7 @@ def process_data_dict(glob_pattern: str = None,
                 raise ValueError('No ' + gff_ext + ' files found in a subdirectory.')
             elif len(fasta_file) == 0:
                 raise ValueError('No ' + fa_ext + ' files found in a subdirectory.')
-            elif len(gff_file) != 1: 
+            elif len(gff_file) != 1:
                 raise ValueError('More than one ' + gff_ext  + ' file found in a subdirectory.')
             elif len(fasta_file) != 1: 
                 raise ValueError('More than one ' + fa_ext + ' file found in a subdirectory.')
@@ -96,14 +94,7 @@ def process_data_dict(glob_pattern: str = None,
 
 # step 1: concatenate annotations together 
 def concat_annotations(data_dict : dict) -> pd.DataFrame: 
-    """This function takes directory containing several 
-    .gff/.csv files and concatenates them into a pd.DataFrame
-    to make parsing easier for downstream steps.
-    files_dir: directory containing .gff files 
-    files_pattern: pattern to glob the .gff files 
-    files_cols: ending column names desired
-    to_remove: names of problematic files 
-    """
+    '''Concatenates all annotations in the data dictionary together.'''
     dataframes = []
     for key in data_dict.keys(): 
         # read the gff file  

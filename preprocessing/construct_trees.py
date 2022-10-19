@@ -2,15 +2,13 @@ import pandas as pd
 import numpy as np
 import qiime2 as q2
 import os
+import subprocess
 import glob
 import skbio
 from pybedtools import BedTool
 from Bio import AlignIO
 from qiime2.plugins import phylogeny
 BED_COLUMNS = ['seqname', 'start', 'end', 'name']
-METADATA_COLUMNS = ['mouse_name', 'time_point', 'isolate_number',
-                    'strain_type', 'bacteria', 'sequencing_lane',
-                    'additional_name']
 
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
@@ -28,13 +26,15 @@ def _prep_dataframe_for_bedtools(feats_df, col_to_sort):
     feats_df.insert(loc=0, column='name', value=fasta_names)
 
 def _merge_features(wd, dir_to_merge):
-    os.chdir(dir_to_merge)
-    os.system("cat *.fa > merged.fa")
-    os.chdir(wd)
+    files_to_merge = glob.glob(dir_to_merge + '*.fa')
+    merged_path = dir_to_merge + 'merged.fa'
+    cat_command = ["cat"] + files_to_merge
+    with open(merged_path, 'w') as outfile: 
+        subprocess.run(cat_command, stdout=outfile)
 
 def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
     """Function to output bed files of all annotated pfams/genes"""
-    _prep_dataframe_for_bedtools(feats_df)
+    _prep_dataframe_for_bedtools(feats_df, col_to_sort)
 
     wd = os.getcwd()
     for f_id in feats_df[col_to_sort].unique():
@@ -52,6 +52,28 @@ def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
         
         _merge_features(wd, out_path+f_id)
 
+def _hmmer_alignment(path_to_merged):
+    # set up variables for hmmfetch and hmmalign 
+    dirname = os.path.dirname(path_to_merged)
+    pfid = os.path.basename(dirname)
+    pf_hmm_out = dirname + '/hmmfile.hmm'
+    msa_sth_out = dirname + '/msa.sth'
+    # do hmmfetch, hmmalign 
+    hmmfetch_cmd = ["hmmfetch", "hmmer_assets/Pfam-A.hmm", pfid]
+    with open(pf_hmm_out, 'w') as outfile: 
+        subprocess.run(hmmalign_cmd, stdout=outfile)
+    hmmalign_cmd = ["hmmalign", "-o", msa_sth_out, "--trim", pf_hmm_out, path_to_merged]
+    subprocess.run(hmmalign_cmd)
+    # convert sth to .fa file
+    msa_fa_out = msa_sth_out.replace('.sth', '.mixedcase.fa')
+    AlignIO.convert(in_file=msa_sth_out, in_format='stockholm', 
+                    out_format='fasta', out_file=msa_fa_out)
+    # convert all characters to uppercase for qiime2 import 
+    upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
+    awk_cmd = ["awk", 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}', msa_fa_out]
+    with open(upper_fa_out, 'w') as outfile: 
+        subprocess.run(awk_cmd, stdout=outfile)
+
 def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
     # make subdirectory: sequence data 
     if not os.path.exists(out_path + 'SequenceData'):
@@ -63,24 +85,7 @@ def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
         # do HMM Alignment  
         merged_paths = glob.glob(out_path + 'SequenceData/*/merged.fa') 
         for path in merged_paths: 
-            # set up variables for hmmfetch and hmmalign 
-            dirname = os.path.dirname(path)
-            pfid = os.path.basename(dirname)
-            pf_hmm_out = dirname + '/hmmfile.hmm'
-            msa_sth_out = dirname + '/msa.sth'
-            # do hmmfetch, hmmalign 
-            hmmfetch_cmd = "hmmfetch hmmer_assets/Pfam-A.hmm %s > %s"%(pfid, pf_hmm_out)
-            hmmalign_cmd = "hmmalign -o %s --trim %s"%(msa_sth_out, path)
-            os.system(hmmfetch_cmd)
-            os.system(hmmalign_cmd)
-            # convert sth to .fa file
-            msa_fa_out = msa_sth_out.replace('.sth', '.mixedcase.fa')
-            AlignIO.convert(in_file=msa_sth_out, in_format='stockholm', 
-                            out_format='fasta', out_file=msa_fa_out)
-            # convert all characters to uppercase for qiime2 import 
-            upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
-            awk_input = "awk 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}' %s > %s"%(msa_fa_out, upper_fa_out)
-            os.system(awk_input)
+            
 
 def _file_made(path):
     return os.path.isfile(path)
@@ -115,8 +120,8 @@ def _make_biom_table(tree_path, gene_name):
     biom_table.to_csv(txt_path, sep='\t')
     # convert to .biom format for later use 
     biom_path = tree_path.replace('tree.nwk', 'table.biom')
-    convert_txt_cmd = "biom convert -i %s -o %s --to-hdf5"%(txt_path, biom_path)
-    os.system(convert_txt_cmd)
+    convert_txt_cmd = ["biom", "convert", "-i", txt_path, "-o", biom_path, "--to-hdf5"]
+    subprocess.run(convert_txt_cmd)
 
 def _make_tree_aligned(path_to_aligned, out_directory):
     pfam_id = os.path.basename(os.path.dirname(path_to_aligned))
@@ -139,34 +144,6 @@ def _make_tree_unaligned(path_to_unaligned, out_directory):
     # make biom table based on the constructed tree
     if not _file_made(out_directory + feat_id + '/table.biom'):
         _make_biom_table(out_directory + feat_id + '/tree.nwk', feat_id)
-
-def _split_filename(x, col_name):
-    name_list = x.split('_')
-    if col_name == 'mouse_name':
-        return name_list[0]
-    elif col_name == 'time_point':
-        return name_list[1]
-    elif col_name == 'isolate_number':
-        return name_list[2]
-    elif col_name == 'additional_name':
-        if(len(name_list)==7):
-            return name_list[-4]
-        return np.nan
-    elif col_name == 'sequencing_lane':
-        return name_list[-3]
-    elif col_name == 'bacteria':
-        return name_list[-2]
-    elif col_name == 'strain_type':
-        return name_list[-1]
-
-def _make_metadata(sample_names):
-    df = pd.DataFrame(data={'sample_name': sample_names})
-    for colname in METADATA_COLUMNS:
-        df.insert(loc=0, column=colname,
-                  value=df['sample_name'].apply(_split_filename,
-                  col_name=colname))
-    df = df.set_index('sample_name')
-    return df
     
 def tree_construction(data_dict: dict, 
                       feats_df: pd.DataFrame,
@@ -179,6 +156,9 @@ def tree_construction(data_dict: dict,
     feats_df: processed pd.DataFrame with filtered annotations that was made in preprocessing steps
     out_path: an output directory where the subsetted sequencing data and the tree data will be written.
     construction_feature: determines whether we will be using Pfam or gene to construct trees.'''
+    if not os.path.exists(out_path):
+        os.mkdir(out_path)
+
     # process the sequences for tree construction 
     _process_sequences(data_dict, feats_df, out_path, construction_feature)
  

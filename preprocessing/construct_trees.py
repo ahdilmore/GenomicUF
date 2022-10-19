@@ -13,6 +13,9 @@ BED_COLUMNS = ['seqname', 'start', 'end', 'name']
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
 
+def _file_made(path):
+    return os.path.isfile(path)
+
 def _prep_dataframe_for_bedtools(feats_df, col_to_sort): 
     # ensure that feats_df.start and feats_df.end are integers
     feats_df.start = feats_df.start.astype('int')
@@ -25,7 +28,7 @@ def _prep_dataframe_for_bedtools(feats_df, col_to_sort):
     fasta_names = feats_df.apply(_make_fasta_name, args=(col_to_sort, ), axis=1)
     feats_df.insert(loc=0, column='name', value=fasta_names)
 
-def _merge_features(wd, dir_to_merge):
+def _merge_features(dir_to_merge):
     files_to_merge = glob.glob(dir_to_merge + '*.fa')
     merged_path = dir_to_merge + 'merged.fa'
     cat_command = ["cat"] + files_to_merge
@@ -36,21 +39,22 @@ def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
     """Function to output bed files of all annotated pfams/genes"""
     _prep_dataframe_for_bedtools(feats_df, col_to_sort)
 
-    wd = os.getcwd()
     for f_id in feats_df[col_to_sort].unique():
         f_df = feats_df.loc[feats_df[col_to_sort]==f_id]
         unique_files = feats_df['filename'].unique()
 
         if not os.path.exists(out_path + f_id):
-            os.mkdir(out_path + f_id + '/')
+            os.mkdir(out_path + f_id)
         
-        for f in unique_files:
-            sub_df = f_df.loc[f_df['filename']==f]
-            bed_file = BedTool.from_dataframe(sub_df[BED_COLUMNS])
-            fasta_path = data_dict[f][1]
-            bed_file.sequence(fi=fasta_path, name=True, fo=out_path+f_id+'/'+f+'.fa')
+        if not _file_made(out_path+f_id+'/merged.fa'):
+            for f in unique_files:
+                if not _file_made(out_path+f_id+'/'+f+'.fa'):
+                    sub_df = f_df.loc[f_df['filename']==f]
+                    bed_file = BedTool.from_dataframe(sub_df[BED_COLUMNS])
+                    fasta_path = data_dict[f][1]
+                    bed_file.sequence(fi=fasta_path, name=True, fo=out_path+f_id+'/'+f+'.fa')
+            _merge_features(out_path+f_id+'/')
         
-        _merge_features(wd, out_path+f_id)
 
 def _hmmer_alignment(path_to_merged):
     # set up variables for hmmfetch and hmmalign 
@@ -58,21 +62,23 @@ def _hmmer_alignment(path_to_merged):
     pfid = os.path.basename(dirname)
     pf_hmm_out = dirname + '/hmmfile.hmm'
     msa_sth_out = dirname + '/msa.sth'
-    # do hmmfetch, hmmalign 
-    hmmfetch_cmd = ["hmmfetch", "hmmer_assets/Pfam-A.hmm", pfid]
-    with open(pf_hmm_out, 'w') as outfile: 
-        subprocess.run(hmmalign_cmd, stdout=outfile)
-    hmmalign_cmd = ["hmmalign", "-o", msa_sth_out, "--trim", pf_hmm_out, path_to_merged]
-    subprocess.run(hmmalign_cmd)
-    # convert sth to .fa file
-    msa_fa_out = msa_sth_out.replace('.sth', '.mixedcase.fa')
-    AlignIO.convert(in_file=msa_sth_out, in_format='stockholm', 
-                    out_format='fasta', out_file=msa_fa_out)
-    # convert all characters to uppercase for qiime2 import 
-    upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
-    awk_cmd = ["awk", 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}', msa_fa_out]
-    with open(upper_fa_out, 'w') as outfile: 
-        subprocess.run(awk_cmd, stdout=outfile)
+    # if files don't exist already, do hmmfetch, hmmalign 
+    if not _file_made(pf_hmm_out):
+        hmmfetch_cmd = ["hmmfetch", "../preprocessing/hmmer_assets/Pfam-A.hmm", pfid]
+        with open(pf_hmm_out, 'w') as outfile: 
+            subprocess.run(hmmfetch_cmd, stdout=outfile)
+    if not _file_made(msa_sth_out):
+        hmmalign_cmd = ["hmmalign", "-o", msa_sth_out, "--trim", pf_hmm_out, path_to_merged]
+        subprocess.run(hmmalign_cmd)
+        # convert sth to .fa file
+        msa_fa_out = msa_sth_out.replace('.sth', '.mixedcase.fa')
+        AlignIO.convert(in_file=msa_sth_out, in_format='stockholm', 
+                        out_format='fasta', out_file=msa_fa_out)
+        # convert all characters to uppercase for qiime2 import 
+        upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
+        awk_cmd = ["awk", 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}', msa_fa_out]
+        with open(upper_fa_out, 'w') as outfile: 
+            subprocess.run(awk_cmd, stdout=outfile)
 
 def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
     # make subdirectory: sequence data 
@@ -84,11 +90,8 @@ def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
     if col_to_sort == 'Pfam':
         # do HMM Alignment  
         merged_paths = glob.glob(out_path + 'SequenceData/*/merged.fa') 
-        for path in merged_paths: 
-            
-
-def _file_made(path):
-    return os.path.isfile(path)
+        for path in merged_paths:
+            _hmmer_alignment(path)
 
 def _make_biom_table(tree_path, gene_name):
     tree = skbio.io.read(tree_path, format="newick", into=skbio.TreeNode)
@@ -100,13 +103,11 @@ def _make_biom_table(tree_path, gene_name):
         node_names.append(node.name)
     # make list of the sample names 
     for name in node_names:
-        name = name[len(gene_name)+1:]
-        expanded_name = name.split("_")
-        final_index = expanded_name.index("mut")
-        sample_name = "_".join(expanded_name[: final_index + 1])
+        final_index = name.index("::")
+        sample_name = name[len(gene_name)+1:final_index]
         if sample_name not in sample_names:
             sample_names.append(sample_name)
-	# put array together 
+    # put array together 
     empty_array = np.zeros((len(sample_names), len(node_names)))
     for i in range(len(sample_names)):
         for j in range(len(node_names)):
@@ -159,6 +160,10 @@ def tree_construction(data_dict: dict,
     if not os.path.exists(out_path):
         os.mkdir(out_path)
 
+    # check that bed columns & construction_feature are in the feats_df 
+    for col in BED_COLUMNS + [construction_feature]:
+        if col not in feats_df.columns: 
+            raise ValueError('The ' + col + ' column is not present in input dataframe.')
     # process the sequences for tree construction 
     _process_sequences(data_dict, feats_df, out_path, construction_feature)
  

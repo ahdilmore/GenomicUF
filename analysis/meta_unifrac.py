@@ -54,6 +54,7 @@ def single_genes(preprocessed_dir : str,
     # if metadata_ext given, load the metadata
     if path_to_metadata is not None: 
         metadata = pd.read_csv(path_to_metadata, sep='\t', index_col='sample_name')
+    # check that the sample names in the metadata match the sample names in the output dir 
     
     list_of_dfs = []
     for tree_path in paths_to_trees: 

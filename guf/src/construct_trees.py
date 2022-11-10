@@ -1,14 +1,21 @@
 import pandas as pd
 import numpy as np
-import qiime2 as q2
+#import qiime2 as q2
 import os
 import subprocess
 import glob
 import skbio
 from pybedtools import BedTool
 from Bio import AlignIO
-from qiime2.plugins import phylogeny
+#from qiime2.plugins import phylogeny
 BED_COLUMNS = ['seqname', 'start', 'end', 'name']
+
+def run_command(cmd, output_fp=None):
+    if output_fp is None: 
+        subprocess.run(cmd)
+    else: 
+        with open(output_fp, 'w') as f: 
+            subprocess.run(cmd, stdout=f)
 
 def _make_fasta_name(x, col_to_sort):
     return x[col_to_sort] + '_' + x['filename'] + '_' + str(x['rank'])
@@ -30,10 +37,7 @@ def _prep_dataframe_for_bedtools(feats_df, col_to_sort):
 
 def _merge_features(dir_to_merge):
     files_to_merge = glob.glob(dir_to_merge + '*.fa')
-    merged_path = dir_to_merge + 'merged.fa'
-    cat_command = ["cat"] + files_to_merge
-    with open(merged_path, 'w') as outfile: 
-        subprocess.run(cat_command, stdout=outfile)
+    run_command(["cat"] + files_to_merge, dir_to_merge + 'merged.fa')
 
 def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
     """Function to output bed files of all annotated pfams/genes"""
@@ -64,21 +68,18 @@ def _hmmer_alignment(path_to_merged):
     msa_sth_out = dirname + '/msa.sth'
     # if files don't exist already, do hmmfetch, hmmalign 
     if not _file_made(pf_hmm_out):
-        hmmfetch_cmd = ["hmmfetch", "../preprocessing/hmmer_assets/Pfam-A.hmm", pfid]
-        with open(pf_hmm_out, 'w') as outfile: 
-            subprocess.run(hmmfetch_cmd, stdout=outfile)
+        hmmfetch_cmd = ["hmmfetch", "../../preprocessing/hmmer_assets/Pfam-A.hmm", pfid]
+        run_command(hmmfetch_cmd, pf_hmm_out)
     if not _file_made(msa_sth_out):
         hmmalign_cmd = ["hmmalign", "-o", msa_sth_out, "--trim", pf_hmm_out, path_to_merged]
-        subprocess.run(hmmalign_cmd)
+        run_command(hmmalign_cmd)
         # convert sth to .fa file
         msa_fa_out = msa_sth_out.replace('.sth', '.mixedcase.fa')
         AlignIO.convert(in_file=msa_sth_out, in_format='stockholm', 
                         out_format='fasta', out_file=msa_fa_out)
         # convert all characters to uppercase for qiime2 import 
-        upper_fa_out = msa_sth_out.replace('.sth', '.upper.fa')
         awk_cmd = ["awk", 'BEGIN{FS=" "}{if(!/>/){print toupper($0)}else{print $1}}', msa_fa_out]
-        with open(upper_fa_out, 'w') as outfile: 
-            subprocess.run(awk_cmd, stdout=outfile)
+        run_command(awk_cmd, msa_sth_out.replace('.sth', '.upper.fa'))
 
 def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
     # make subdirectory: sequence data 
@@ -92,6 +93,15 @@ def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
         merged_paths = glob.glob(out_path + 'SequenceData/*/merged.fa') 
         for path in merged_paths:
             _hmmer_alignment(path)
+
+def _mafft(alignment_fp, n_threads=1):
+    cmd = ['mafft', '--preservecase', '--inputorder', '--thread', str(n_threads)]
+    run_command(cmd, alignment_fp)
+
+def _fasttree(aligned_fp, tree_fp):
+    cmd = ['FastTree', '-quote', '-nt', aligned_fp]
+    run_command(cmd, tree_fp)
+
 
 def _make_biom_table(tree_path, gene_name):
     tree = skbio.io.read(tree_path, format="newick", into=skbio.TreeNode)
@@ -122,30 +132,33 @@ def _make_biom_table(tree_path, gene_name):
     # convert to .biom format for later use 
     biom_path = tree_path.replace('tree.nwk', 'table.biom')
     convert_txt_cmd = ["biom", "convert", "-i", txt_path, "-o", biom_path, "--to-hdf5"]
-    subprocess.run(convert_txt_cmd)
+    run_command(convert_txt_cmd)
 
 def _make_tree_aligned(path_to_aligned, out_directory):
     pfam_id = os.path.basename(os.path.dirname(path_to_aligned))
+    # check that the directory has been made
+    if not os.path.exists(out_directory + pfam_id):
+            os.mkdir(out_directory + pfam_id)
+    # if tree has not been made, run fasttree with the MSA 
     if not _file_made(out_directory + pfam_id + '/tree.nwk'): 
-        # import aligned sequence into qiime2 & make tree 
-        msa = q2.Artifact.import_data(type='FeatureData[AlignedSequence]', view=path_to_aligned)
-        tree = phylogeny.methods.fasttree(alignment=msa).tree
-        q2.Artifact.export_data(tree, out_directory + pfam_id)
+        _fasttree(path_to_aligned, out_directory + pfam_id + '/tree.nwk')
     # make biom table based on the constructed tree
     if not _file_made(out_directory + pfam_id + '/table.biom'):
         _make_biom_table(out_directory + pfam_id + '/tree.nwk', pfam_id)
 
+'''
 def _make_tree_unaligned(path_to_unaligned, out_directory):
     feat_id = os.path.basename(os.path.dirname(path_to_unaligned))
     if not _file_made(out_directory + feat_id + '/tree.nwk'):
-        # import aligned sequence into qiime2 & make tree
+        # perform sequence alignment with mafft
         seq = q2.Artifact.import_data(type='FeatureData[Sequence]', view=path_to_unaligned)
         tree = phylogeny.pipelines.align_to_tree_mafft_fasttree(sequences=seq).tree
         q2.Artifact.export_data(tree, out_directory + feat_id)
     # make biom table based on the constructed tree
     if not _file_made(out_directory + feat_id + '/table.biom'):
         _make_biom_table(out_directory + feat_id + '/tree.nwk', feat_id)
-    
+ '''
+
 def tree_construction(data_dict: dict, 
                       feats_df: pd.DataFrame,
                       out_path: str,
@@ -160,8 +173,9 @@ def tree_construction(data_dict: dict,
     if not os.path.exists(out_path):
         os.mkdir(out_path)
 
-    # check that bed columns & construction_feature are in the feats_df 
-    for col in BED_COLUMNS + [construction_feature]:
+    # check that bed columns & construction_feature are in the feats_df
+    check_cols = [col for col in BED_COLUMNS if col!='name'] + [construction_feature]
+    for col in check_cols:
         if col not in feats_df.columns: 
             raise ValueError('The ' + col + ' column is not present in input dataframe.')
     # process the sequences for tree construction 
@@ -171,10 +185,10 @@ def tree_construction(data_dict: dict,
     if not os.path.exists(out_path + 'TreeData'):
             os.mkdir(out_path + 'TreeData')
     aligned_fastas = glob.glob(out_path + 'SequenceData/*/msa.upper.fa')
-    unaligned_fastas = glob.glob(out_path + 'SequenceData/*/merged.fa')
-    if aligned_fastas == []: 
-        for path in unaligned_fastas: 
-            _make_tree_unaligned(path, out_path+'TreeData/')
-    else:
-        for path in aligned_fastas: 
-            _make_tree_aligned(path, out_path+'TreeData/')
+    #unaligned_fastas = glob.glob(out_path + 'SequenceData/*/merged.fa')
+    #if aligned_fastas == []: 
+    #    for path in unaligned_fastas: 
+    #       _make_tree_unaligned(path, out_path+'TreeData/')
+    #else:
+    for path in aligned_fastas: 
+        _make_tree_aligned(path, out_path+'TreeData/')

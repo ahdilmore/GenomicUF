@@ -176,7 +176,7 @@ def wrapper_func(data_dict : dict = None,
                  fa_ext : str = '.fa', 
                  pfam : bool = True, 
                  feature_value : str = 'CDS', 
-                 filter_value : int =5) -> Tuple[dict, pd.DataFrame]:
+                 filter_value : int = 5) -> Tuple[dict, pd.DataFrame]:
     # check or make data dict 
     data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 
@@ -190,7 +190,8 @@ def wrapper_func(data_dict : dict = None,
     if pfam: 
         pfam_feats = extract_pfam(feats)
         filtered = filter_features(pfam_feats, 'Pfam', filter_value)
-    else: 
+    else:
+        _split_attribute(feats, ['gene'])
         filtered = filter_features(feats, 'gene', filter_value)
     
     return data_dict, filtered

@@ -1,5 +1,13 @@
 # GenomicUF
-Scripts to process data for [meta]genomic UniFrac calculations. 
+Utilizes microbial genomic annotations - such as those output from [prokka](https://github.com/tseemann/prokka) - to construct per-gene trees, which may then be used to perform Unweighted UniFrac calculations on a per-gene basis. We can perform either a single-gene analysis, yielding an effect size for each unique gene or a multi-gene analysis i.e. [Meta UniFrac](https://github.com/biocore/unifrac/blob/master/unifrac/_meta.py) yielding an effect size for several groups of genes. Note that the latter does not scale well computationally and only small numbers of combinations are recommended at this point.  
+
+## Installation 
+```
+conda install -c bioconda bedtools hmmer fasttree unifrac -c anaconda scikit-bio
+git clone https://github.com/ahdilmore/GenomicUF.git
+cd GenomicUF 
+pip install -e .
+```
 
 ## What is Genomic UniFrac?
 Genomic UniFrac implements the [UniFrac algorithm](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1317376/) on whole genome sequences. More than one microbial species may be sequenced (i.e. the data may be metagenomic in neature), but whole genome sequences are available. This is distinct from Meta UniFrac (or Metagenomic UniFrac) which operates on sequencing data obtained from a mixed microbial community but whole genome sequences are not necessarily inferred. 

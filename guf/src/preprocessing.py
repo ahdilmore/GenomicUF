@@ -3,12 +3,32 @@ import numpy as np
 import glob
 import os
 import warnings
+import subprocess
 from typing import Tuple
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
 ATTRIBUTE_COLUMNS = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene', 
                      'inference', 'locus_tag', 'product', 'protein_id']
+
+def _make_dir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+    
+# utility for copying data from a different directory 
+def copy_files(data_dir, out_dir, gff_ext='/*.gff', fa_ext='/*.fa'):
+    # ensure out_dir exists 
+    _make_dir(out_dir)
+    # get the filenames 
+    files = glob.glob(data_dir)
+    for f in files:
+        base = os.path.basename(f)
+        _make_dir(out_dir+base)
+        gff_file = glob.glob(f+gff_ext)[0]
+        fa_file = glob.glob(f+fa_ext)[0]
+        for i in [gff_file, fa_file]:
+            subprocess.call('cp ' + i + ' ' + out_dir + base + '/' + os.path.basename(i),
+                            shell=True)
 
 # preprocessing combines multiple steps from previous pipelines 
 # optional step 1: read the gff file 

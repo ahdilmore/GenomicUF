@@ -52,7 +52,7 @@ setup(
         "pybedtools",
         "biopython",
         "scikit-bio > 0.5.3",
-        "biom-format",
+	"biom-format",
         "unifrac"
     ],
     include_package_data=True,

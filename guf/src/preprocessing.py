@@ -8,8 +8,9 @@ from typing import Tuple
 
 GFF_COLUMNS = ['seqname', 'source', 'feature', 'start',
                'end', 'score', 'strand', 'frame', 'attribute']
-ATTRIBUTE_COLUMNS = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene', 
-                     'inference', 'locus_tag', 'product', 'protein_id']
+ATTRIBUTE_PROKKA = ['ID', 'Parent', 'eC_number', 'Name', 'dbxref', 'gene', 
+		    'inference', 'locus_tag', 'product', 'protein_id']
+ATTRIBUTE_BAKTA = ['ID', 'Name', 'locus_tag', 'Dbxref', 'gene', 'transl_except', 'Note']
 
 def _make_dir(path):
     if not os.path.exists(path):
@@ -162,13 +163,13 @@ def _split_attribute(df, cols_to_insert) -> pd.DataFrame:
     # remove attribute
     return df.drop(columns=['attribute'])
 
-def extract_pfam(features_df : pd.DataFrame) -> pd.DataFrame:
+def extract_pfam(features_df : pd.DataFrame, attribute_cols) -> pd.DataFrame:
     """Function extract Pfam features."""
     if 'attribute' not in features_df.columns: 
         raise ValueError('Attribute column not present in dataframe.')
 
     # split up the attribute column to search more easily for Pfams
-    full_df = _split_attribute(features_df, ATTRIBUTE_COLUMNS)
+    full_df = _split_attribute(features_df, attribute_cols)
 
     # check that there are no NaNs in inference 
     if full_df.loc[full_df['inference'].isna()].shape[0] > 0:
@@ -208,7 +209,7 @@ def wrapper_func(data_dict : dict = None,
 
     # extract Pfams if flag is raised and filter Pfams
     if pfam: 
-        pfam_feats = extract_pfam(feats)
+        pfam_feats = extract_pfam(feats, ATTRIBUTE_PROKKA)
         filtered = filter_features(pfam_feats, 'Pfam', filter_value)
     else:
         _split_attribute(feats, ['gene'])

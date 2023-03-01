@@ -134,7 +134,7 @@ def _make_tree_aligned(path_to_aligned, out_directory):
     pfam_id = os.path.basename(os.path.dirname(path_to_aligned))
     # check that the directory has been made
     if not os.path.exists(out_directory + pfam_id):
-            os.mkdir(out_directory + pfam_id)
+        os.mkdir(out_directory + pfam_id)
     # if tree has not been made, run fasttree with the MSA 
     if not _file_made(out_directory + pfam_id + '/tree.nwk'): 
         _fasttree(path_to_aligned, out_directory + pfam_id + '/tree.nwk')
@@ -144,8 +144,9 @@ def _make_tree_aligned(path_to_aligned, out_directory):
 
 
 def _make_tree_unaligned(path_to_unaligned, out_directory):
-    feat_id = os.path.basename(os.path.dirname(path_to_unaligned))
-    path_to_aligned = path_to_unaligned.replace('merged.fa', 'aligned.fa')
+    feat_id_with_fa = os.path.basename(path_to_unaligned)
+    feat_id = feat_id_with_fa.split('.')[0]
+    path_to_aligned = path_to_unaligned.replace('.fa', '_aligned.fa')
     # do alignment if it has not already been done 
     if not _file_made(path_to_aligned):
         _mafft(path_to_unaligned, path_to_aligned)
@@ -184,7 +185,7 @@ def tree_construction(data_dict: dict,
     if not os.path.exists(out_path + 'TreeData'):
             os.mkdir(out_path + 'TreeData')
     aligned_fastas = glob.glob(out_path + 'SequenceData/*/msa.upper.fa')
-    unaligned_fastas = glob.glob(out_path + 'SequenceData/*/merged.fa')
+    unaligned_fastas = glob.glob(out_path + 'SequenceData/*[!fasta].fa')
     if aligned_fastas == []: 
         for path in unaligned_fastas: 
            _make_tree_unaligned(path, out_path+'TreeData/')

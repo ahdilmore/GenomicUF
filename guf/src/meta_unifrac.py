@@ -4,7 +4,6 @@ import glob
 import skbio
 import os
 import unifrac
-import biom
 import itertools
     
 # add any additional viable unifrac methods here
@@ -21,18 +20,23 @@ def run_unifracs(table, tree, metadata, column, unifracToRun, method='None'):
         dm = unifracToRun(table,tree,method=method)
     return skbio.stats.distance.permanova(dm, metadata, column)
 
-# can add a threads parameter later if we want to
-
-def single_gene(tree_dir, unifracs_to_run, table, metadata, sep_column):
+def single_gene(unifracs_to_run : list,
+                metadata : pd.DataFrame, 
+                sep_column : str, 
+                table : biom.Table = None, 
+                tree_dir : str = None, 
+                table_and_tree_dir : str = None):
+    # Checks that either table AND tree dir OR table_and_tree_dir are passed
+    if ((tree_dir is None) | (table is None)) & (table_and_tree_dir is None):
+        raise ValueError('Either a directory containing .biom tables and .nwk trees or a .biom table and directory with .nwk trees must be passed.')
     
-    valid_unifracs = []
-    
+    # if table and tree dir provided, tree glob added 
+    if (table_and_tree_dir is not None): 
+        tree_dir = table_and_tree_dir
     # Checks to make sure all unifracs_to_run are viable inputs
     for element in unifracs_to_run:
-        if element not in UNIFRACS.keys():
-            warnings.warn(element + " is not a valid unifrac input")
-        else:
-            valid_unifracs.append(element)
+        if element not in UNIFRACS:
+            raise ValueError(element + " is not a valid unifrac input")
     
     names = []
     test_stats = []
@@ -42,19 +46,21 @@ def single_gene(tree_dir, unifracs_to_run, table, metadata, sep_column):
     for unifrac_method in unifracs_to_run:
         for path in glob.glob(tree_dir + "*.nwk")[:2]:
             if len(os.path.basename(path).split('.')) < 2:
-                warnings.warn(os.path.basename(path) + " is not a valid tree file name")
-            names.append(os.path.basename(path).split('.')[-2])
-            
+                raise ValueError(os.path.basename(path) + " is not a valid tree file name")
+            if table is None:
+                table = biom.load_table(path.replace('tree.nwk', 'table.biom')) 
             tree = skbio.io.read(path, format="newick", into=skbio.TreeNode)
+
+            names.append(os.path.basename(path).split('.')[-2])
             perm_out = run_unifracs(table, tree, metadata, sep_column, UNIFRACS[unifrac_method])
             test_stats.append(perm_out['test statistic'])
             p_values.append(perm_out['p-value'])
             unifrac_type.append(unifrac_method)
             
     df = pd.DataFrame(data = {'test statistic': test_stats,
-                                     'p value': p_values,
-                                     'unifrac type': unifrac_type},
-                     index = names)
+                              'p value': p_values,
+                              'unifrac type': unifrac_type},
+                      index = names)
     
     return df
 

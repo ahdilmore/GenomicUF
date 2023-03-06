@@ -51,7 +51,7 @@ def single_gene(unifracs_to_run : list,
             if table is None:
                 table = biom.load_table(path.replace('tree.nwk', 'table.biom'))
                 # filter table based on metadata
-                table.filter(ids_to_keep=metadata.index) 
+                table.filter(ids_to_keep=metadata.index.intersection(table.ids())) 
             tree = skbio.io.read(path, format="newick", into=skbio.TreeNode)
 
             names.append(os.path.basename(path).split('.')[-2])

@@ -6,10 +6,6 @@ import os
 import unifrac
 import biom
 import itertools
-
-table = biom.load_table('Data/thdmi_feature_table.biom')
-metadata = pd.read_csv('Data/consolidated_metadata.tsv', sep='\t',index_col=0)
-
     
 # add any additional viable unifrac methods here
 UNIFRACS = {

@@ -25,11 +25,13 @@ def copy_files(data_dir, out_dir, gff_ext='/*.gff', fa_ext='/*.fa'):
     for f in files:
         base = os.path.basename(f)
         _make_dir(out_dir+base)
-        gff_file = glob.glob(f+gff_ext)[0]
-        fa_file = glob.glob(f+fa_ext)[0]
-        for i in [gff_file, fa_file]:
-            subprocess.call('cp ' + i + ' ' + out_dir + base + '/' + os.path.basename(i),
-                            shell=True)
+        files_to_copy = []
+        if len(glob.glob(f+gff_ext)) == 1: 
+            files_to_copy.append(glob.glob(f+gff_ext)[0])
+        if len(glob.glob(f+fa_ext)) == 1: 
+            files_to_copy.append(glob.glob(f+fa_ext)[0])
+        for i in files_to_copy:
+            subprocess.call('cp ' + i + ' ' + out_dir + base + '/' + os.path.basename(i), shell=True)
 
 # preprocessing combines multiple steps from previous pipelines 
 # optional step 1: read the gff file 

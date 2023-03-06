@@ -109,8 +109,8 @@ def _make_biom_table(tree_path, gene_name):
         node_names.append(node.name)
     # make list of the sample names 
     for name in node_names:
-        final_index = name.index("::")
-        sample_name = name[len(gene_name)+1:final_index]
+        feature_name = name[len(gene_name)+1:name.index("::")]
+        sample_name = '_'.join(feature_name.split('_')[:-1])
         if sample_name not in sample_names:
             sample_names.append(sample_name)
     # put array together 
@@ -188,7 +188,7 @@ def tree_construction(data_dict: dict,
     unaligned_fastas = glob.glob(out_path + 'SequenceData/*[!fasta].fa')
     if aligned_fastas == []: 
         for path in unaligned_fastas: 
-           _make_tree_unaligned(path, out_path+'TreeData/')
+            _make_tree_unaligned(path, out_path+'TreeData/')
     else:
         for path in aligned_fastas: 
             _make_tree_aligned(path, out_path+'TreeData/')

@@ -33,7 +33,7 @@ def _prep_dataframe_for_bedtools(feats_df, col_to_sort):
     fasta_names = feats_df.apply(_make_fasta_name, args=(col_to_sort, ), axis=1)
     feats_df.insert(loc=0, column='name', value=fasta_names)
 
-def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
+def _extract_sequence(data_dict, feats_df, col_to_sort, out_path, folders):
     """Function to output bed files of all annotated pfams/genes"""
     _prep_dataframe_for_bedtools(feats_df, col_to_sort)
 
@@ -46,10 +46,10 @@ def _extract_sequence(data_dict, feats_df, col_to_sort, out_path):
 
     for f_id in feats_df[col_to_sort].unique():
         f_df = feats_df.loc[feats_df[col_to_sort]==f_id]
-
-        if not _file_made(out_path+f_id+'.fa'):
+        fasta_out = out_path + f_id + '/merged.fa' if folders else out_path+f_id+'.fa'
+        if not _file_made(fasta_out):
             bed_file = BedTool.from_dataframe(f_df[BED_COLUMNS])
-            bed_file.sequence(fi=out_path+'merged_fasta.fa', name=True, fo=out_path+f_id+'.fa')
+            bed_file.sequence(fi=out_path+'merged_fasta.fa', name=True, fo=fasta_out)
         
 
 def _hmmer_alignment(path_to_merged):
@@ -81,7 +81,8 @@ def _process_sequences(data_dict, feats_df, out_path, col_to_sort):
     if not os.path.exists(out_path + 'SequenceData'):
             os.mkdir(out_path + 'SequenceData')
     # extract all the subsequences, merge to file for msa
-    _extract_sequence(data_dict, feats_df, col_to_sort, out_path + 'SequenceData/')
+    folders = True if col_to_sort == 'Pfam' else False
+    _extract_sequence(data_dict, feats_df, col_to_sort, out_path + 'SequenceData/', folders)
     
     if col_to_sort == 'Pfam':
         # do HMM Alignment  

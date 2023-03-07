@@ -19,7 +19,10 @@ def run_unifracs(table, tree, metadata, column, unifracToRun, method='None'):
         dm = unifracToRun(table,tree)
     else:
         dm = unifracToRun(table,tree,method=method)
-    dm_filt = dm.filter(ids=metadata.index.intersection(table.ids()))
+    intersect = metadata.index.intersection(table.ids())
+    dm_filt = dm.filter(ids=intersect)
+    if len(metadata.loc[intersect][column].unique()) == 1: 
+        return None
     return skbio.stats.distance.permanova(dm_filt, metadata, column)
 
 def single_gene(unifracs_to_run : list,
@@ -90,9 +93,14 @@ def multi_gene(tree_dir, tables, methods, metadata, sep_column):
             tree_names = [os.path.basename(path).split('.')[-2] for path in path_combo]
             names.append(tree_names)
             perm_out = run_unifracs(tables, trees, metadata, sep_column, UNIFRACS['meta'], method=method)
-            test_stats.append(perm_out['test statistic'])
-            p_values.append(perm_out['p-value'])
+            if perm_out is not None: 
+                test_stats.append(perm_out['test statistic'])
+                p_values.append(perm_out['p-value'])
+            else: 
+                test_stats.append(np.nan)
+                p_values.append(np.nan)
             unifrac_type.append('meta ' + method)
+            
             
         names = [str(name_combo) for name_combo in names]
             

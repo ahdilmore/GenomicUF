@@ -54,12 +54,17 @@ def single_gene(unifracs_to_run : list,
                 raise ValueError(os.path.basename(path) + " is not a valid tree file name")
             if table_and_tree_dir is not None:
                 table = biom.load_table(path.replace('tree.nwk', 'table.biom'))
+                names.append(os.path.basename(os.path.dirname(path)))
+            else: 
+                names.append(os.path.basename(path).split('.')[0])
             tree = skbio.io.read(path, format="newick", into=skbio.TreeNode)
-
-            names.append(os.path.basename(path).split('.')[-2])
             perm_out = run_unifracs(table, tree, metadata, sep_column, UNIFRACS[unifrac_method])
-            test_stats.append(perm_out['test statistic'])
-            p_values.append(perm_out['p-value'])
+            if perm_out is not None: 
+                test_stats.append(perm_out['test statistic'])
+                p_values.append(perm_out['p-value'])
+            else: 
+                test_stats.append(np.nan)
+                p_values.append(np.nan)
             unifrac_type.append(unifrac_method)
             
     df = pd.DataFrame(data = {'test statistic': test_stats,
@@ -105,8 +110,8 @@ def multi_gene(tree_dir, tables, methods, metadata, sep_column):
         names = [str(name_combo) for name_combo in names]
             
     df = pd.DataFrame(data = {'test statistic': test_stats,
-                                     'p value': p_values,
-                                     'unifrac type': unifrac_type},
+                              'p value': p_values,
+                              'unifrac type': unifrac_type},
                      index = names)
     
     return df

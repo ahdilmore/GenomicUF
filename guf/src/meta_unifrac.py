@@ -10,7 +10,7 @@ import biom
 # add any additional viable unifrac methods here
 UNIFRACS = {
     'unweighted': unifrac.unweighted,
-    'unweighted fp32': unifrac.unweighted_fp32,
+    'unweighted_fp32': unifrac.unweighted_fp32,
     'meta': unifrac.meta
 }
 
@@ -19,7 +19,8 @@ def run_unifracs(table, tree, metadata, column, unifracToRun, method='None'):
         dm = unifracToRun(table,tree)
     else:
         dm = unifracToRun(table,tree,method=method)
-    return skbio.stats.distance.permanova(dm, metadata, column)
+    dm_filt = dm.filter(ids=metadata.index.intersection(table.ids()))
+    return skbio.stats.distance.permanova(dm_filt, metadata, column)
 
 def single_gene(unifracs_to_run : list,
                 metadata : pd.DataFrame, 
@@ -45,13 +46,11 @@ def single_gene(unifracs_to_run : list,
     unifrac_type = []
     
     for unifrac_method in unifracs_to_run:
-        for path in glob.glob(tree_dir + "*.nwk")[:2]:
+        for path in glob.glob(tree_dir + "*.nwk"):
             if len(os.path.basename(path).split('.')) < 2:
                 raise ValueError(os.path.basename(path) + " is not a valid tree file name")
-            if table is None:
+            if table_and_tree_dir is not None:
                 table = biom.load_table(path.replace('tree.nwk', 'table.biom'))
-                # filter table based on metadata
-                table.filter(ids_to_keep=metadata.index.intersection(table.ids())) 
             tree = skbio.io.read(path, format="newick", into=skbio.TreeNode)
 
             names.append(os.path.basename(path).split('.')[-2])

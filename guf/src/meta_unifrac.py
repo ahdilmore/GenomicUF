@@ -11,6 +11,8 @@ import biom
 UNIFRACS = {
     'unweighted': unifrac.unweighted,
     'unweighted_fp32': unifrac.unweighted_fp32,
+    'weighted': unifrac.weighted_unnormalized, 
+    'weighted_fp32': unifrac.weighted_unnormalized_fp32,
     'meta': unifrac.meta
 }
 

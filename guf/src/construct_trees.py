@@ -48,6 +48,8 @@ def _extract_sequence(data_dict, feats_df, col_to_sort, out_path, folders):
         f_df = feats_df.loc[feats_df[col_to_sort]==f_id]
         fasta_out = out_path + f_id + '/merged.fa' if folders else out_path+f_id+'.fa'
         if not _file_made(fasta_out):
+            if folders: 
+                os.mkdir(out_path + f_id)
             bed_file = BedTool.from_dataframe(f_df[BED_COLUMNS])
             bed_file.sequence(fi=out_path+'merged_fasta.fa', name=True, fo=fasta_out)
         

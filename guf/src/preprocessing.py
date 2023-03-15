@@ -173,7 +173,7 @@ def extract_pfam(features_df : pd.DataFrame, pfam_str) -> pd.DataFrame:
      # find rows that have a Pfam value and insert column with their value 
     pfam = features_df.loc[features_df['attribute'].str.contains(pfam_str)]
     pfam.insert(loc=0, column='Pfam', 
-                value=pfam['inference'].apply(_sub_col, str_to_find=pfam_str, 
+                value=pfam['attribute'].apply(_sub_col, str_to_find=pfam_str, 
                                               sep=':'))
     return pfam
 

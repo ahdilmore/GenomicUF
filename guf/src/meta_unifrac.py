@@ -91,7 +91,7 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
             trees = [skbio.io.read(path, format='newick', into=skbio.TreeNode) for path in path_combo]
             if table is None: 
                 tables = [p.replace('.nwk', '.biom') for p in path_combo]
-            names = [os.path.basename(path).split('.')[0] for path in path_combo]
+            names = '&'.join([os.path.basename(path).split('.')[0] for path in path_combo])
             perm_out = run_unifracs(tables, trees, sample_metadata, sep_column, UNIFRACS['meta'], method=method)
             if perm_out is not None: 
                 results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': perm_out['test statistic'], 

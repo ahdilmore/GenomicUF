@@ -16,7 +16,7 @@ UNIFRACS = {
     'meta': unifrac.meta
 }
 
-def _verify_unifracs(unifracs): 
+def _verify_unifracs(unifracs_to_run): 
     for element in unifracs_to_run:
         if element not in UNIFRACS:
             raise ValueError(element + " is not a valid unifrac input")

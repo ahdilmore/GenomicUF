@@ -90,7 +90,7 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
         for path_combo in list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables)):
             trees = [skbio.io.read(path, format='newick', into=skbio.TreeNode) for path in path_combo]
             if table is None: 
-                tables = [biom.load_table(p.replace('.nwk', '.biom')) for p in path_combo]
+                tables = [biom.load_table(p.replace('tree.nwk', 'table.biom')) for p in path_combo]
             names = '&'.join([os.path.basename(path).split('.')[0] for path in path_combo])
             perm_out = run_unifracs(tables, trees, sample_metadata, sep_column, UNIFRACS['meta'], method=method)
             if perm_out is not None: 

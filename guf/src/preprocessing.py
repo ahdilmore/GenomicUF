@@ -187,14 +187,14 @@ def filter_features(features_df : pd.DataFrame, feature_col : str, min_value : i
 
 # step 5: make feature metadata (for use in single genes, meta unifrac)
 def feature_metadata(features_df: pd.DataFrame, feature_col: str):
-    unique_feats = features_df[feature_col].unique()
-    out_df = pd.DataFrame(columns=['num_sequences', 'num_samples'], index=unique_feats)
-    for f in unique_feats: 
-        out_df['num_sequences'][f] = features_df.loc[features_df[feature_col] == f].shape[0]
-        out_df['num_samples'][f] = len(features_df.loc[features_df[feature_col] == f]['seqname'].unique())
-    return out_df
+    grouped = features_df.groupby(feature_col)['filename']
+    unique_feats = grouped.nunique().to_frame()
+    total_feats = grouped.count().to_frame()
+    unique_feats.rename(columns={'filename': 'num_samples'}, inplace=True)
+    total_feats.rename(columns={'filename': 'num_sequences', inplace=True})
+    return unique_feats.merge(total_feats, right_index=True, left_index=True)
 
-# step 5: wrap to make a list of total features 
+# step 6: wrap to make a list of total features 
 def wrapper_func(data_dict : dict = None, 
                  glob_pattern : str = None, 
                  gff_ext : str = '.gff', 

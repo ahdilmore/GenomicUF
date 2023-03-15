@@ -21,12 +21,16 @@ def _verify_unifracs(unifracs_to_run):
         if element not in UNIFRACS:
             raise ValueError(element + " is not a valid unifrac input")
 
-def run_unifracs(table, tree, metadata, column, unifracToRun, method='None'):
-    if method == 'None':
+def run_unifracs(table, tree, metadata, column, unifracToRun, method=None):
+    if method is None:
         dm = unifracToRun(table,tree)
+        intersect = metadata.index.intersection(table.ids())
     else:
         dm = unifracToRun(table,tree,method=method)
-    intersect = metadata.index.intersection(table.ids())
+        t = table[0].ids()
+        for i in range(1, len(table)):
+            t = set(t) | set(table[i].ids())
+        intersect = metadata.index.intersection(list(t))
     dm_filt = dm.filter(ids=intersect)
     if len(metadata.loc[intersect][column].unique()) == 1: 
         return None

@@ -191,7 +191,7 @@ def feature_metadata(features_df: pd.DataFrame, feature_col: str):
     unique_feats = grouped.nunique().to_frame()
     total_feats = grouped.count().to_frame()
     unique_feats.rename(columns={'filename': 'num_samples'}, inplace=True)
-    total_feats.rename(columns={'filename': 'num_sequences', inplace=True})
+    total_feats.rename(columns={'filename': 'num_sequences'}, inplace=True)
     return unique_feats.merge(total_feats, right_index=True, left_index=True)
 
 # step 6: wrap to make a list of total features 

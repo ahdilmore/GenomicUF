@@ -165,7 +165,7 @@ def _split_attribute(df, cols_to_insert) -> pd.DataFrame:
     # remove attribute
     return df.drop(columns=['attribute'])
 
-def extract_pfam(features_df : pd.DataFrame, attribute_cols) -> pd.DataFrame:
+def extract_pfam(features_df : pd.DataFrame, attribute_cols, pfam_str) -> pd.DataFrame:
     """Function extract Pfam features."""
     if 'attribute' not in features_df.columns: 
         raise ValueError('Attribute column not present in dataframe.')
@@ -178,9 +178,9 @@ def extract_pfam(features_df : pd.DataFrame, attribute_cols) -> pd.DataFrame:
         raise ValueError('Features dataframe has not been filtered. There are entries with invalid inferences.')
     
     # find rows that have a Pfam value and insert column with their value 
-    pfam = full_df.loc[full_df['inference'].str.contains('Pfam')]
+    pfam = full_df.loc[full_df['inference'].str.contains(pfam_str)]
     pfam.insert(loc=0, column='Pfam', 
-                value=pfam['inference'].apply(_sub_col, str_to_find='Pfam-A:', 
+                value=pfam['inference'].apply(_sub_col, str_to_find=pfam_str, 
                                               sep=':'))
     return pfam
 
@@ -192,14 +192,24 @@ def filter_features(features_df : pd.DataFrame, feature_col : str, min_value : i
     filt = counts[counts > min_value].index
     return features_df.loc[features_df[feature_col].isin(filt)]
 
+# step 5: make feature metadata (for use in single genes, meta unifrac)
+def feature_metadata(features_df: pd.DataFrame, feature_col: str):
+    unique_feats = features_df[feature_col].unique()
+    out_df = pd.DataFrame(columns=['num_sequences', 'num_samples'], index=unique_feats)
+    for f in unique_feats: 
+        out_df['num_sequences'][f] = features_df.loc[features_df[feature_col] == f].shape[0]
+        out_df['num_samples'][f] = len(features_df.loc[features_df[feature_col] == f]['seqname'].unique())
+    return out_df
+
 # step 5: wrap to make a list of total features 
 def wrapper_func(data_dict : dict = None, 
                  glob_pattern : str = None, 
                  gff_ext : str = '.gff', 
-                 fa_ext : str = '.fa', 
-                 pfam : bool = True, 
+                 fa_ext : str = '.fa',
                  feature_value : str = 'CDS', 
-                 filter_value : int = 5) -> Tuple[dict, pd.DataFrame]:
+                 filter_value : int = 5, 
+                 pfam_str : str = None, 
+                 attribute_cols: list = ATTRIBUTE_PROKKA) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     # check or make data dict 
     data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 
@@ -209,12 +219,14 @@ def wrapper_func(data_dict : dict = None,
     # filter annots to feature of interest
     feats = filter_annotations(annots, feature_value)
 
-    # extract Pfams if flag is raised and filter Pfams
-    if pfam: 
-        pfam_feats = extract_pfam(feats, ATTRIBUTE_PROKKA)
+    # extract Pfams if a Pfam str is supplies, then filter to only these Pfams
+    if pfam_str is not None: 
+        pfam_feats = extract_pfam(feats, attribute_cols, pfam_str)
         filtered = filter_features(pfam_feats, 'Pfam', filter_value)
+        feat_md = feature_metadata(filtered, 'Pfam')
     else:
         _split_attribute(feats, ['gene'])
         filtered = filter_features(feats, 'gene', filter_value)
-    
-    return data_dict, filtered
+        feat_md = feature_metadata(filtered, 'gene')
+
+    return data_dict, filtered, feat_md

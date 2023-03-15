@@ -165,20 +165,13 @@ def _split_attribute(df, cols_to_insert) -> pd.DataFrame:
     # remove attribute
     return df.drop(columns=['attribute'])
 
-def extract_pfam(features_df : pd.DataFrame, attribute_cols, pfam_str) -> pd.DataFrame:
+def extract_pfam(features_df : pd.DataFrame, pfam_str) -> pd.DataFrame:
     """Function extract Pfam features."""
     if 'attribute' not in features_df.columns: 
         raise ValueError('Attribute column not present in dataframe.')
-
-    # split up the attribute column to search more easily for Pfams
-    full_df = _split_attribute(features_df, attribute_cols)
-
-    # check that there are no NaNs in inference 
-    if full_df.loc[full_df['inference'].isna()].shape[0] > 0:
-        raise ValueError('Features dataframe has not been filtered. There are entries with invalid inferences.')
     
-    # find rows that have a Pfam value and insert column with their value 
-    pfam = full_df.loc[full_df['inference'].str.contains(pfam_str)]
+     # find rows that have a Pfam value and insert column with their value 
+    pfam = features_df.loc[features_df['attribute'].str.contains(pfam_str)]
     pfam.insert(loc=0, column='Pfam', 
                 value=pfam['inference'].apply(_sub_col, str_to_find=pfam_str, 
                                               sep=':'))
@@ -208,8 +201,7 @@ def wrapper_func(data_dict : dict = None,
                  fa_ext : str = '.fa',
                  feature_value : str = 'CDS', 
                  filter_value : int = 5, 
-                 pfam_str : str = None, 
-                 attribute_cols: list = ATTRIBUTE_PROKKA) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
+                 pfam_str : str = None) -> Tuple[dict, pd.DataFrame, pd.DataFrame]:
     # check or make data dict 
     data_dict = process_data_dict(glob_pattern, data_dict, gff_ext, fa_ext)
 
@@ -221,7 +213,7 @@ def wrapper_func(data_dict : dict = None,
 
     # extract Pfams if a Pfam str is supplies, then filter to only these Pfams
     if pfam_str is not None: 
-        pfam_feats = extract_pfam(feats, attribute_cols, pfam_str)
+        pfam_feats = extract_pfam(feats, pfam_str)
         filtered = filter_features(pfam_feats, 'Pfam', filter_value)
         feat_md = feature_metadata(filtered, 'Pfam')
     else:

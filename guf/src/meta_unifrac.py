@@ -16,6 +16,11 @@ UNIFRACS = {
     'meta': unifrac.meta
 }
 
+def _verify_unifracs(unifracs): 
+    for element in unifracs_to_run:
+        if element not in UNIFRACS:
+            raise ValueError(element + " is not a valid unifrac input")
+
 def run_unifracs(table, tree, metadata, column, unifracToRun, method='None'):
     if method == 'None':
         dm = unifracToRun(table,tree)
@@ -28,8 +33,9 @@ def run_unifracs(table, tree, metadata, column, unifracToRun, method='None'):
     return skbio.stats.distance.permanova(dm_filt, metadata, column)
 
 def single_gene(unifracs_to_run : list,
-                metadata : pd.DataFrame, 
-                sep_column : str, 
+                sample_metadata : pd.DataFrame, 
+                sep_column : str,
+                feature_metadata : pd.DataFrame = None,
                 table : biom.Table = None, 
                 tree_dir : str = None, 
                 table_and_tree_dir : str = None):
@@ -40,83 +46,63 @@ def single_gene(unifracs_to_run : list,
     # if table and tree dir provided, tree glob added 
     if (table_and_tree_dir is not None): 
         tree_dir = table_and_tree_dir
-    # Checks to make sure all unifracs_to_run are viable inputs
-    for element in unifracs_to_run:
-        if element not in UNIFRACS:
-            raise ValueError(element + " is not a valid unifrac input")
+    _verify_unifracs(unifracs_to_run)
     
-    names = []
-    test_stats = []
-    p_values = []
-    unifrac_type = []
-    
+    all_results = []
     for unifrac_method in unifracs_to_run:
+        results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
         for path in glob.glob(tree_dir + "*.nwk"):
             if len(os.path.basename(path).split('.')) < 2:
                 raise ValueError(os.path.basename(path) + " is not a valid tree file name")
             if table_and_tree_dir is not None:
                 table = biom.load_table(path.replace('tree.nwk', 'table.biom'))
-                names.append(os.path.basename(os.path.dirname(path)))
+                name = os.path.basename(os.path.dirname(path))
             else: 
-                names.append(os.path.basename(path).split('.')[0])
+                name = os.path.basename(path).split('.')[0]
             tree = skbio.io.read(path, format="newick", into=skbio.TreeNode)
-            perm_out = run_unifracs(table, tree, metadata, sep_column, UNIFRACS[unifrac_method])
-            if perm_out is not None: 
-                test_stats.append(perm_out['test statistic'])
-                p_values.append(perm_out['p-value'])
+            perm_out = run_unifracs(table, tree, sample_metadata, sep_column, UNIFRACS[unifrac_method])
+            if perm_out is not None:
+                results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': perm_out['test statistic'], 
+                                                                   'p_value': perm_out['p-value']}, index=[name])])
             else: 
-                test_stats.append(np.nan)
-                p_values.append(np.nan)
-            unifrac_type.append(unifrac_method)
-            
-    df = pd.DataFrame(data = {'test statistic': test_stats,
-                              'p value': p_values,
-                              'unifrac type': unifrac_type},
-                      index = names)
-    
-    return df
+                results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': np.nan, 
+                                                                   'p_value': np.nan}, index=[name])])
+        results['unifrac_type'] = unifrac_method
+        if feature_metadata is not None: 
+            results = results.merge(feature_metadata, right_index=True, left_index = True)
+        all_results.append(results)
+    return pd.concat(all_results).reset_index()
 
-def multi_gene(tree_dir, tables, methods, metadata, sep_column):
-    
-    valid_unifracs = []
-    
+def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_column, 
+               num_tables : int, table : biom.Table = None):
+        
     # Checks to make sure all unifracs_to_run are viable inputs
-    for element in methods:
-        if element not in UNIFRACS.keys():
-            warnings.warn(element + " is not a valid unifrac input")
-        else:
-            valid_unifracs.append(element)
+    _verify_unifracs(unifracs_to_run)
     
-    names = []
-    test_stats = []
-    p_values = []
-    unifrac_type = []
-    
-    combo_length = len(tables)
-    
-    for method in methods:
-        for path_combo in list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), combo_length))[:5]:
+    # Checks that either table AND tree dir OR table_and_tree_dir are passed
+    if table is not None: 
+        tables = []
+        for i in range(num_tables): 
+            tables.append(table)
+    all_results = []
+    for method in unifracs_to_run:
+        results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
+        for path_combo in list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables)):
             trees = [skbio.io.read(path, format='newick', into=skbio.TreeNode) for path in path_combo]
-            tree_names = [os.path.basename(path).split('.')[-2] for path in path_combo]
-            names.append(tree_names)
-            perm_out = run_unifracs(tables, trees, metadata, sep_column, UNIFRACS['meta'], method=method)
+            if table is None: 
+                tables = [p.replace('.nwk', '.biom') for p in path_combo]
+            names = [os.path.basename(path).split('.')[0] for path in path_combo]
+            perm_out = run_unifracs(tables, trees, sample_metadata, sep_column, UNIFRACS['meta'], method=method)
             if perm_out is not None: 
-                test_stats.append(perm_out['test statistic'])
-                p_values.append(perm_out['p-value'])
+                results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': perm_out['test statistic'], 
+                                                                   'p_value': perm_out['p-value']}, index=[names])])
             else: 
-                test_stats.append(np.nan)
-                p_values.append(np.nan)
-            unifrac_type.append('meta ' + method)
-            
-            
-        names = [str(name_combo) for name_combo in names]
-            
-    df = pd.DataFrame(data = {'test statistic': test_stats,
-                              'p value': p_values,
-                              'unifrac type': unifrac_type},
-                     index = names)
-    
-    return df
+                results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': np.nan, 
+                                                                   'p_value': np.nan}, index=[names])])
+        results['unifrac_type'] = 'meta' + method
+        all_results.append(results)
+
+    return pd.concat(all_results).reset_index()
 
 
 

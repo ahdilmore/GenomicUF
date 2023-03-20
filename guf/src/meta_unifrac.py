@@ -21,7 +21,7 @@ def _verify_unifracs(unifracs_to_run):
         if element not in UNIFRACS:
             raise ValueError(element + " is not a valid unifrac input")
 
-def run_unifracs(table, tree, metadata, column, unifracToRun, method=None):
+def run_unifracs(table, tree, metadata, column, unifracToRun, method=None, permutations=1):
     if method is None:
         dm = unifracToRun(table,tree)
         intersect = metadata.index.intersection(table.ids())
@@ -34,7 +34,7 @@ def run_unifracs(table, tree, metadata, column, unifracToRun, method=None):
     dm_filt = dm.filter(ids=intersect)
     if len(metadata.loc[intersect][column].unique()) == 1: 
         return None
-    return skbio.stats.distance.permanova(dm_filt, metadata, column)
+    return skbio.stats.distance.permanova(dm_filt, metadata, column, permutations)
 
 def single_gene(unifracs_to_run : list,
                 sample_metadata : pd.DataFrame, 

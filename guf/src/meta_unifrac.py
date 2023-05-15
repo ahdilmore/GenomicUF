@@ -102,7 +102,7 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
 
     tree_dict = {}
     for path in glob.glob(tree_dir+'*.nwk'): 
-        tree_dict[path] = skbio.io.load(path, format='newick', into=skbio.TreeNode)
+        tree_dict[path] = skbio.io.read(path, format='newick', into=skbio.TreeNode)
         if table is None: 
             table_dict[path] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
 

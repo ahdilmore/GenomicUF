@@ -50,8 +50,15 @@ def single_gene(unifracs_to_run : list,
     # if table and tree dir provided, tree glob added 
     if (table_and_tree_dir is not None): 
         tree_dir = table_and_tree_dir
+        table_dict = {}
+    tree_dict = {}
     _verify_unifracs(unifracs_to_run)
     
+    for path in glob.glob(tree_dir + "*.nwk"):
+        tree_dict[path] = skbio.io.read(path, format='newick', into=skbio.TreeNode)
+        if table_and_tree_dir is not None: 
+            table_dict[path] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
+
     all_results = []
     for unifrac_method in unifracs_to_run:
         results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
@@ -59,11 +66,11 @@ def single_gene(unifracs_to_run : list,
             if len(os.path.basename(path).split('.')) < 2:
                 raise ValueError(os.path.basename(path) + " is not a valid tree file name")
             if table_and_tree_dir is not None:
-                table = biom.load_table(path.replace('tree.nwk', 'table.biom'))
+                table = table_dict[path]
                 name = os.path.basename(os.path.dirname(path))
             else: 
                 name = os.path.basename(path).split('.')[0]
-            tree = skbio.io.read(path, format="newick", into=skbio.TreeNode)
+            tree = tree_dict[path]
             perm_out = run_unifracs(table, tree, sample_metadata, sep_column, UNIFRACS[unifrac_method])
             if perm_out is not None:
                 results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': perm_out['test statistic'], 
@@ -88,14 +95,23 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
         tables = []
         for i in range(num_tables): 
             tables.append(table)
+    else: 
+        table_dict = {}
     all_results = []
     counter = 0
+
+    tree_dict = {}
+    for path in glob.glob(tree_dir+'*.nwk'): 
+        tree_dict[path] = skbio.io.load(path, format='newick', into=skbio.TreeNode)
+        if table is None: 
+            table_dict[path] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
+
     for method in unifracs_to_run:
         results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
         for path_combo in list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables)):
-            trees = [skbio.io.read(path, format='newick', into=skbio.TreeNode) for path in path_combo]
+            trees = [tree_dict[path] for path in path_combo]
             if table is None: 
-                tables = [biom.load_table(p.replace('tree.nwk', 'table.biom')) for p in path_combo]
+                tables = [table_dict[p] for p in path_combo]
             names = '&'.join([os.path.basename(os.path.dirname(path)).split('.')[0] for path in path_combo])
             perm_out = run_unifracs(tables, trees, sample_metadata, sep_column, UNIFRACS['meta'], method=method)
             if perm_out is not None: 

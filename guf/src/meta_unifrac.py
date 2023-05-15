@@ -78,7 +78,7 @@ def single_gene(unifracs_to_run : list,
     return pd.concat(all_results).reset_index()
 
 def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_column, 
-               num_tables : int, table : biom.Table = None):
+               num_tables : int, table : biom.Table = None, max_count=None):
         
     # Checks to make sure all unifracs_to_run are viable inputs
     _verify_unifracs(unifracs_to_run)
@@ -89,13 +89,14 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
         for i in range(num_tables): 
             tables.append(table)
     all_results = []
+    counter = 0
     for method in unifracs_to_run:
         results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
         for path_combo in list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables)):
             trees = [skbio.io.read(path, format='newick', into=skbio.TreeNode) for path in path_combo]
             if table is None: 
                 tables = [biom.load_table(p.replace('tree.nwk', 'table.biom')) for p in path_combo]
-            names = '&'.join([os.path.basename(path).split('.')[0] for path in path_combo])
+            names = '&'.join([os.path.basename(os.path.dirname(path)).split('.')[0] for path in path_combo])
             perm_out = run_unifracs(tables, trees, sample_metadata, sep_column, UNIFRACS['meta'], method=method)
             if perm_out is not None: 
                 results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': perm_out['test statistic'], 
@@ -103,6 +104,9 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
             else: 
                 results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': np.nan, 
                                                                    'p_value': np.nan}, index=[names])])
+            counter += 1
+            if counter == max_count: 
+                break 
         results['unifrac_type'] = 'meta' + method
         all_results.append(results)
 

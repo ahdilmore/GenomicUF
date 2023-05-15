@@ -188,7 +188,7 @@ def tree_construction(data_dict: dict,
     if not os.path.exists(out_path + 'TreeData'):
             os.mkdir(out_path + 'TreeData')
     aligned_fastas = glob.glob(out_path + 'SequenceData/*/msa.upper.fa')
-    unaligned_fastas = glob.glob(out_path + 'SequenceData/*[!fasta].fa')
+    unaligned_fastas = glob.glob(out_path + 'SequenceData/*[!aligned].fa')
     if aligned_fastas == []: 
         for path in unaligned_fastas: 
             _make_tree_unaligned(path, out_path+'TreeData/')

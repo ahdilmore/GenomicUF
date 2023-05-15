@@ -174,7 +174,7 @@ def extract_pfam(features_df : pd.DataFrame, pfam_str) -> pd.DataFrame:
     pfam = features_df.loc[features_df['attribute'].str.contains(pfam_str)]
     pfam.insert(loc=0, column='Pfam', 
                 value=pfam['attribute'].apply(_sub_col, str_to_find=pfam_str, 
-                                              sep=':'))
+                                              sep=';'))
     return pfam
 
 # step 4: filter the features to certain value counts 

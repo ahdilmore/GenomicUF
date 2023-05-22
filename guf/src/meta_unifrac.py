@@ -85,7 +85,8 @@ def single_gene(unifracs_to_run : list,
     return pd.concat(all_results).reset_index()
 
 def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_column, 
-               num_tables : int, table : biom.Table = None, max_count=None):
+               num_tables : int, table : biom.Table = None, max_count : int = None, 
+               subset_to_run : list = None):
         
     # Checks to make sure all unifracs_to_run are viable inputs
     _verify_unifracs(unifracs_to_run)
@@ -97,22 +98,31 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
             tables.append(table)
     else: 
         table_dict = {}
+    if subset_to_run is None: 
+        combos = list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables))
+        iterations = [os.path.basename(os.path.dirname(i)) for i in combos]
+    elif len(subset_to_run) >= num_tables:
+        ValueError("Number of tables to compare is larger than number of tables provided")
+    else: 
+        iterations = list(itertools.combinations(subset_to_run, num_tables))
     all_results = []
+    
     counter = 0
 
     tree_dict = {}
     for path in glob.glob(tree_dir+'*.nwk'): 
-        tree_dict[path] = skbio.io.read(path, format='newick', into=skbio.TreeNode)
+        tree_name = os.path.basename(os.path.dirname(path))
+        tree_dict[tree_name] = skbio.io.read(path, format='newick', into=skbio.TreeNode)
         if table is None: 
-            table_dict[path] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
+            table_dict[tree_name] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
 
     for method in unifracs_to_run:
         results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
-        for path_combo in list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables)):
+        for path_combo in iterations:
             trees = [tree_dict[path] for path in path_combo]
             if table is None: 
                 tables = [table_dict[p] for p in path_combo]
-            names = '&'.join([os.path.basename(os.path.dirname(path)).split('.')[0] for path in path_combo])
+            names = '&'.join(path_combo)
             perm_out = run_unifracs(tables, trees, sample_metadata, sep_column, UNIFRACS['meta'], method=method)
             if perm_out is not None: 
                 results = pd.concat([results, pd.DataFrame(data = {'PERMANOVA_PseudoF': perm_out['test statistic'], 

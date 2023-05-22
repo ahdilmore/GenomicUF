@@ -101,8 +101,8 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
     if subset_to_run is None: 
         combos = list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables))
         iterations = [os.path.basename(os.path.dirname(i)) for i in combos]
-    elif len(subset_to_run) >= num_tables:
-        ValueError("Number of tables to compare is larger than number of tables provided")
+    elif len(subset_to_run) <= num_tables:
+        raise ValueError("Number of tables to compare is larger than number of tables provided")
     else: 
         iterations = list(itertools.combinations(subset_to_run, num_tables))
     all_results = []

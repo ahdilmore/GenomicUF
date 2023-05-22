@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np 
 import glob
 import skbio
+import bp
 import os
 import unifrac
 import itertools
@@ -55,7 +56,7 @@ def single_gene(unifracs_to_run : list,
     _verify_unifracs(unifracs_to_run)
     
     for path in glob.glob(tree_dir + "*.nwk"):
-        tree_dict[path] = skbio.io.read(path, format='newick', into=skbio.TreeNode)
+        tree_dict[path] = bp.parse_newick(open(path).read())
         if table_and_tree_dir is not None: 
             table_dict[path] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
 
@@ -112,7 +113,7 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
     tree_dict = {}
     for path in glob.glob(tree_dir+'*.nwk'): 
         tree_name = os.path.basename(os.path.dirname(path))
-        tree_dict[tree_name] = skbio.io.read(path, format='newick', into=skbio.TreeNode)
+        tree_dict[tree_name] = bp.parse_newick(open(path).read())
         if table is None: 
             table_dict[tree_name] = biom.load_table(path.replace('tree.nwk', 'table.biom'))
 

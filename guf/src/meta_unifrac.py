@@ -101,11 +101,10 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
         table_dict = {}
     if subset_to_run is None: 
         combos = list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables))
-        iterations = [os.path.basename(os.path.dirname(i)) for i in combos]
     elif len(subset_to_run) <= num_tables:
         raise ValueError("Number of tables to compare is larger than number of tables provided")
     else: 
-        iterations = list(itertools.combinations(subset_to_run, num_tables))
+        combos = list(itertools.combinations(subset_to_run, num_tables))
     all_results = []
     
     counter = 0
@@ -119,7 +118,9 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
 
     for method in unifracs_to_run:
         results = pd.DataFrame(columns=['PERMANOVA_PseudoF', 'p_value'])
-        for path_combo in iterations:
+        for path_combo in combos:
+            if subset_to_run is None: 
+                path_combo = [os.path.basename(os.path.dirname(i)) for i in path_combo]
             trees = [tree_dict[path] for path in path_combo]
             if table is None: 
                 tables = [table_dict[p] for p in path_combo]

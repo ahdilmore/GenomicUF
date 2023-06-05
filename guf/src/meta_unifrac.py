@@ -87,7 +87,7 @@ def single_gene(unifracs_to_run : list,
 
 def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_column, 
                num_tables : int, table : biom.Table = None, max_count : int = None, 
-               subset_to_run : list = None):
+               subset_to_run : list = None, iterations_to_consider: list = None):
         
     # Checks to make sure all unifracs_to_run are viable inputs
     _verify_unifracs(unifracs_to_run)
@@ -99,12 +99,15 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
             tables.append(table)
     else: 
         table_dict = {}
-    if subset_to_run is None: 
-        combos = list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables))
-    elif len(subset_to_run) <= num_tables:
-        raise ValueError("Number of tables to compare is larger than number of tables provided")
+    if iterations_to_consider is not None: 
+        if subset_to_run is None: 
+            combos = list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables))
+        elif len(subset_to_run) <= num_tables:
+            raise ValueError("Number of tables to compare is larger than number of tables provided")
+        else: 
+            combos = list(itertools.combinations(subset_to_run, num_tables))
     else: 
-        combos = list(itertools.combinations(subset_to_run, num_tables))
+        combos = iterations_to_consider
     all_results = []
     
     counter = 0

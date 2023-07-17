@@ -99,7 +99,7 @@ def multi_gene(unifracs_to_run : list, tree_dir : str, sample_metadata, sep_colu
             tables.append(table)
     else: 
         table_dict = {}
-    if iterations_to_consider is not None: 
+    if iterations_to_consider is None: 
         if subset_to_run is None: 
             combos = list(itertools.combinations(glob.glob(tree_dir+'*.nwk'), num_tables))
         elif len(subset_to_run) <= num_tables:

@@ -130,7 +130,7 @@ def _make_biom_table(tree_path, gene_name, species_table):
         feature_names = species_table.ids(axis='observation')
         species_table_df = species_table.to_dataframe().T
         # put array together 
-        empty_array = np.zeroes((len(sample_names), len(node_names)))
+        empty_array = np.zeros((len(sample_names), len(node_names)))
         for i in range(len(feature_names)):
             for j in range(len(node_names)):
                 if feature_names[i] in node_names[j]:

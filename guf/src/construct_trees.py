@@ -130,15 +130,14 @@ def _make_biom_table(tree_path, gene_name, species_table):
         feature_names = species_table.ids(axis='observation')
         species_table_df = species_table.to_dataframe().T
         # put array together 
-        empty_array = np.zeros((len(sample_names), len(node_names)))
+        empty_df = pd.DataFrame(index=sample_names, columns=node_names) 
         for i in range(len(feature_names)):
             for j in range(len(node_names)):
                 if feature_names[i] in node_names[j]:
                     for k in sample_names: 
-                        empty_array[k][j] = species_table_df[k][i]
-    
+                        empty_df[node_names[j]][k] = species_table_df[feature_names[i]][k]
                 
-    biom_table = biom.Table(empty_array, observation_ids=node_names, sample_ids=sample_names)
+    biom_table = biom.Table(empty_df.T.values, observation_ids=node_names, sample_ids=sample_names)
     f = h5py.File(tree_path.replace('tree.nwk', 'table.biom'), 'w')
     biom_table.to_hdf5(f, 'guf')
     f.close()

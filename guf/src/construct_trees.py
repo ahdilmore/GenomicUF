@@ -3,6 +3,8 @@ import numpy as np
 import os
 import subprocess
 import glob
+import h5py
+import biom
 import skbio
 from pybedtools import BedTool
 from Bio import AlignIO
@@ -102,38 +104,46 @@ def _fasttree(aligned_fp, tree_fp):
     run_command(cmd, tree_fp)
 
 
-def _make_biom_table(tree_path, gene_name):
+def _make_biom_table(tree_path, gene_name, species_table):
     tree = skbio.io.read(tree_path, format="newick", into=skbio.TreeNode)
-    # intialize lists of nodes and sample names 
+    # make a list of node names 
     node_names = []
-    sample_names = []
-    # make list of node names 
     for node in tree.tips():
-        node_names.append(node.name)
-    # make list of the sample names 
-    for name in node_names:
-        feature_name = name[len(gene_name)+1:name.index("::")]
-        sample_name = '_'.join(feature_name.split('_')[:-1])
-        if sample_name not in sample_names:
-            sample_names.append(sample_name)
-    # put array together 
-    empty_array = np.zeros((len(sample_names), len(node_names)))
-    for i in range(len(sample_names)):
-        for j in range(len(node_names)):
-            if sample_names[i] in node_names[j]:
-                empty_array[i][j] = 1
-    biom_table = pd.DataFrame(data=empty_array, columns=node_names,
-                              index=sample_names)
-    biom_table = biom_table.T
-    # save biom table
-    txt_path = tree_path.replace('tree.nwk', 'table.txt')
-    biom_table.to_csv(txt_path, sep='\t')
-    # convert to .biom format for later use 
-    biom_path = tree_path.replace('tree.nwk', 'table.biom')
-    convert_txt_cmd = ["biom", "convert", "-i", txt_path, "-o", biom_path, "--to-hdf5"]
-    run_command(convert_txt_cmd)
+            node_names.append(node.name)
+    if species_table is None: 
+        # intialize lists of nodes and sample names 
+        sample_names = []
+        # make list of the sample names 
+        for name in node_names:
+            feature_name = name[len(gene_name)+1:name.index("::")]
+            sample_name = '_'.join(feature_name.split('_')[:-1])
+            if sample_name not in sample_names:
+                sample_names.append(sample_name)
+         # put array together 
+        empty_array = np.zeros((len(sample_names), len(node_names)))
+        for i in range(len(sample_names)):
+            for j in range(len(node_names)):
+                if sample_names[i] in node_names[j]:
+                    empty_array[i][j] = 1
+    else: 
+        sample_names = species_table.ids()
+        feature_names = species_table.ids(axis='observation')
+        species_table_df = species_table.to_dataframe().T
+        # put array together 
+        empty_array = np.zeroes((len(sample_names), len(node_names)))
+        for i in range(len(feature_names)):
+            for j in range(len(node_names)):
+                if feature_names[i] in node_names[j]:
+                    for k in sample_names: 
+                        empty_array[k][j] = species_table_df[k][i]
+    
+                
+    biom_table = biom.Table(empty_array, observation_ids=node_names, sample_ids=sample_names)
+    f = h5py.File(tree_path.replace('tree.nwk', 'table.biom'), 'w')
+    biom_table.to_hdf5(f, 'guf')
+    f.close()
 
-def _make_tree_aligned(path_to_aligned, out_directory):
+def _make_tree_aligned(path_to_aligned, out_directory, species_table):
     pfam_id = os.path.basename(os.path.dirname(path_to_aligned))
     # check that the directory has been made
     if not os.path.exists(out_directory + pfam_id):
@@ -143,10 +153,10 @@ def _make_tree_aligned(path_to_aligned, out_directory):
         _fasttree(path_to_aligned, out_directory + pfam_id + '/tree.nwk')
     # make biom table based on the constructed tree
     if not _file_made(out_directory + pfam_id + '/table.biom'):
-        _make_biom_table(out_directory + pfam_id + '/tree.nwk', pfam_id)
+        _make_biom_table(out_directory + pfam_id + '/tree.nwk', pfam_id, species_table)
 
 
-def _make_tree_unaligned(path_to_unaligned, out_directory):
+def _make_tree_unaligned(path_to_unaligned, out_directory, species_table):
     feat_id_with_fa = os.path.basename(path_to_unaligned)
     feat_id = feat_id_with_fa.split('.')[0]
     path_to_aligned = path_to_unaligned.replace('.fa', '_aligned.fa')
@@ -161,13 +171,14 @@ def _make_tree_unaligned(path_to_unaligned, out_directory):
          _fasttree(path_to_aligned, out_directory + feat_id + '/tree.nwk')
     # make biom table based on the constructed tree
     if not _file_made(out_directory + feat_id + '/table.biom'):
-        _make_biom_table(out_directory + feat_id + '/tree.nwk', feat_id)
+        _make_biom_table(out_directory + feat_id + '/tree.nwk', feat_id, species_table)
  
 
 def tree_construction(data_dict: dict, 
                       feats_df: pd.DataFrame,
                       out_path: str,
-                      construction_feature : str = 'Pfam') -> None:
+                      construction_feature : str = 'Pfam', 
+                      species_table: biom.Table = None) -> None:
     '''This pipeline constructs per-gene trees that will be used downstream
     in single UniFrac or meta UniFrac calculations. 
     data_dict: dictionary where keys are sample names and values are a tuple of the
@@ -191,7 +202,7 @@ def tree_construction(data_dict: dict,
     unaligned_fastas = glob.glob(out_path + 'SequenceData/*[!aligned].fa')
     if aligned_fastas == []: 
         for path in unaligned_fastas: 
-            _make_tree_unaligned(path, out_path+'TreeData/')
+            _make_tree_unaligned(path, out_path+'TreeData/', species_table)
     else:
         for path in aligned_fastas: 
-            _make_tree_aligned(path, out_path+'TreeData/')
+            _make_tree_aligned(path, out_path+'TreeData/', species_table)
